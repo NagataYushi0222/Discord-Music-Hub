@@ -68,17 +68,27 @@ export default function App() {
     setErrorMessage("");
     try {
       const nextUser = await getMe();
-      if (nextUser) {
-        const guildSelection = await getGuildSelection();
-        setGuilds(guildSelection.guilds);
-        setSelectedGuildId(guildSelection.selectedGuildId ?? "");
-      } else {
+      setMe(nextUser);
+
+      if (!nextUser) {
         setGuilds([]);
         setSelectedGuildId("");
+        setTracks([]);
+        setSelectedId(null);
+        return;
+      }
+
+      const guildSelection = await getGuildSelection();
+      setGuilds(guildSelection.guilds);
+      setSelectedGuildId(guildSelection.selectedGuildId ?? "");
+
+      if (!guildSelection.selectedGuildId) {
+        setTracks([]);
+        setSelectedId(null);
+        return;
       }
 
       const nextTracks = await listTracks();
-      setMe(nextUser);
       setTracks(nextTracks);
       setSelectedId((current) => current ?? nextTracks[0]?.id ?? null);
     } catch (error) {
@@ -101,6 +111,8 @@ export default function App() {
   const selectedGuild = useMemo(() => {
     return guilds.find((guild) => guild.id === selectedGuildId) ?? null;
   }, [guilds, selectedGuildId]);
+
+  const canAccessTracks = Boolean(me && selectedGuildId);
 
   const tagSuggestions = useMemo(() => {
     const latestByTag = new Map<string, string>();
@@ -396,6 +408,12 @@ export default function App() {
       const guildSelection = await selectGuild(guildId);
       setGuilds(guildSelection.guilds);
       setSelectedGuildId(guildSelection.selectedGuildId ?? guildId);
+      if (!guildSelection.selectedGuildId) {
+        setTracks([]);
+        setSelectedId(null);
+        return;
+      }
+
       const nextTracks = await listTracks();
       setTracks(nextTracks);
       setSelectedId(nextTracks[0]?.id ?? null);
@@ -544,9 +562,19 @@ export default function App() {
                 </label>
                 <button
                   type="button"
-                  onClick={() => setView("add")}
-                  className="focus-ring grid h-14 w-14 place-items-center rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-500"
+                  disabled={!canAccessTracks}
+                  onClick={() => {
+                    if (canAccessTracks) {
+                      setView("add");
+                    }
+                  }}
+                  className="focus-ring grid h-14 w-14 place-items-center rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
                   aria-label="曲を追加"
+                  title={
+                    canAccessTracks
+                      ? "曲を追加"
+                      : "ログインしてDiscordサーバーを選択してください"
+                  }
                 >
                   <Plus className="h-7 w-7" />
                 </button>
@@ -581,7 +609,7 @@ export default function App() {
         </div>
       ) : null}
 
-      {view === "add" ? (
+      {view === "add" && canAccessTracks ? (
         <AddTrackView
           currentUser={me}
           tracks={tracks}
@@ -637,6 +665,32 @@ export default function App() {
               {loading ? (
                 <div className="soft-card rounded-lg p-8 text-center text-slate-500">
                   読み込み中...
+                </div>
+              ) : !me ? (
+                <div className="soft-card rounded-lg p-8 text-center text-slate-500">
+                  <p className="font-semibold text-slate-700">
+                    Discordログインすると曲一覧を表示できます
+                  </p>
+                  <a
+                    href="/api/auth/discord/start"
+                    className="focus-ring mt-4 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 font-semibold text-white"
+                  >
+                    <LogIn className="h-4 w-4" />
+                    Discord Login
+                  </a>
+                </div>
+              ) : !selectedGuildId ? (
+                <div className="soft-card rounded-lg p-8 text-center text-slate-500">
+                  <p className="font-semibold text-slate-700">
+                    Discordサーバーを選択すると曲一覧を表示できます
+                  </p>
+                  <a
+                    href="/api/auth/discord/start"
+                    className="focus-ring mt-4 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 font-semibold text-slate-700"
+                  >
+                    <RefreshCcw className="h-4 w-4" />
+                    サーバー取得
+                  </a>
                 </div>
               ) : visibleTracks.length === 0 ? (
                 <div className="soft-card rounded-lg p-8 text-center text-slate-500">

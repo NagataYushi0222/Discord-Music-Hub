@@ -115,13 +115,9 @@ async function hydrateTrack(
 
 export async function listTracks(
   env: Env,
-  viewerId?: string,
-  guildId?: string | null,
+  viewerId: string,
+  guildId: string,
 ): Promise<Track[]> {
-  const guildFilter = guildId
-    ? "AND (tracks.guild_id = ? OR tracks.guild_id IS NULL)"
-    : "";
-  const params = guildId ? [viewerId ?? "", guildId] : [viewerId ?? ""];
   const rows = await env.DB.prepare(
     `SELECT tracks.*,
             users.id AS user_id,
@@ -132,10 +128,10 @@ export async function listTracks(
        JOIN users ON users.id = tracks.added_by_user_id
       WHERE (tracks.visibility = 'public'
          OR tracks.added_by_user_id = ?)
-      ${guildFilter}
+        AND tracks.guild_id = ?
       ORDER BY tracks.created_at DESC`,
   )
-    .bind(...params)
+    .bind(viewerId, guildId)
     .all<TrackRow>();
 
   return Promise.all(
@@ -146,7 +142,8 @@ export async function listTracks(
 export async function getTrackById(
   env: Env,
   trackId: string,
-  viewerId?: string,
+  viewerId: string,
+  guildId: string,
 ): Promise<Track | null> {
   const row = await env.DB.prepare(
     `SELECT tracks.*,
@@ -157,9 +154,10 @@ export async function getTrackById(
        FROM tracks
        JOIN users ON users.id = tracks.added_by_user_id
       WHERE tracks.id = ?
+        AND tracks.guild_id = ?
         AND (tracks.visibility = 'public' OR tracks.added_by_user_id = ?)`,
   )
-    .bind(trackId, viewerId ?? "")
+    .bind(trackId, guildId, viewerId)
     .first<TrackRow>();
 
   return row ? hydrateTrack(env, row, viewerId) : null;
@@ -168,14 +166,16 @@ export async function getTrackById(
 export async function ensureTrackVisible(
   env: Env,
   trackId: string,
-  viewerId?: string,
+  viewerId: string,
+  guildId: string,
 ): Promise<boolean> {
   const row = await env.DB.prepare(
     `SELECT id FROM tracks
       WHERE id = ?
+        AND guild_id = ?
         AND (visibility = 'public' OR added_by_user_id = ?)`,
   )
-    .bind(trackId, viewerId ?? "")
+    .bind(trackId, guildId, viewerId)
     .first<{ id: string }>();
   return Boolean(row);
 }

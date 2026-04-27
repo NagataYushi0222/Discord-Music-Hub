@@ -34,10 +34,16 @@ async function getTrackColumns(env: Env) {
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const user = await requireUser(request, env).catch(() => null);
-  const selectedGuildId = user
-    ? await getSelectedGuildId(env, user.id)
-    : null;
-  const tracks = await listTracks(env, user?.id, selectedGuildId);
+  if (!user) {
+    return unauthorized();
+  }
+
+  const selectedGuildId = await getSelectedGuildId(env, user.id);
+  if (!selectedGuildId) {
+    return badRequest("Discord server must be selected.");
+  }
+
+  const tracks = await listTracks(env, user.id, selectedGuildId);
   return json(tracks);
 };
 
@@ -98,6 +104,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const id = `track_${crypto.randomUUID()}`;
   const selectedGuildId = await getSelectedGuildId(env, user.id);
+  if (!selectedGuildId) {
+    return badRequest("Discord server must be selected.");
+  }
+
   const trackColumns = await getTrackColumns(env);
   const insertColumns = [
     "id",
@@ -163,6 +173,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       .run();
   }
 
-  const created = await getTrackById(env, id, user.id);
+  const created = await getTrackById(env, id, user.id, selectedGuildId);
   return json(created, { status: 201 });
 };

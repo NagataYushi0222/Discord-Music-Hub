@@ -1,4 +1,5 @@
 import { requireUser } from "../../../_lib/auth";
+import { getSelectedGuildId } from "../../../_lib/guilds";
 import { badRequest, json, notFound, readJson, unauthorized } from "../../../_lib/http";
 import { ensureTrackVisible, getTrackById } from "../../../_lib/tracks";
 import type { Env } from "../../../_lib/types";
@@ -16,7 +17,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   }
 
   const trackId = String(params.id);
-  if (!(await ensureTrackVisible(env, trackId, user.id))) {
+  const selectedGuildId = await getSelectedGuildId(env, user.id);
+  if (
+    !selectedGuildId ||
+    !(await ensureTrackVisible(env, trackId, user.id, selectedGuildId))
+  ) {
     return notFound("Track not found.");
   }
 
@@ -42,5 +47,5 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
     )
     .run();
 
-  return json(await getTrackById(env, trackId, user.id), { status: 201 });
+  return json(await getTrackById(env, trackId, user.id, selectedGuildId), { status: 201 });
 };
