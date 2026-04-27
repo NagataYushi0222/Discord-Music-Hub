@@ -1,0 +1,461 @@
+import {
+  Bell,
+  Filter,
+  LogIn,
+  Music2,
+  Plus,
+  RefreshCcw,
+  Search,
+  SlidersHorizontal,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import clsx from "clsx";
+import { AddTrackView } from "./components/AddTrackView";
+import { PlayerBar } from "./components/PlayerBar";
+import { TrackCard } from "./components/TrackCard";
+import { TrackDetail } from "./components/TrackDetail";
+import { addTimestamp, createTrack, getMe, listTracks, setTrackLike } from "./lib/api";
+import type { YouTubePlayer } from "./lib/youtubePlayer";
+import type { AppUser, Track, TrackCreateInput } from "./types";
+
+type ViewMode = "browse" | "add";
+type TabMode = "all" | "mine";
+type SortMode = "newest" | "popular" | "viewed";
+type PlaybackState = {
+  isReady: boolean;
+  isPlaying: boolean;
+  currentTime: number;
+  duration: number;
+  volume: number;
+};
+
+export default function App() {
+  const [view, setView] = useState<ViewMode>("browse");
+  const [tab, setTab] = useState<TabMode>("all");
+  const [sort, setSort] = useState<SortMode>("viewed");
+  const [query, setQuery] = useState("");
+  const [activeTag, setActiveTag] = useState("");
+  const [tracks, setTracks] = useState<Track[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [me, setMe] = useState<AppUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [player, setPlayer] = useState<YouTubePlayer | null>(null);
+  const [playback, setPlayback] = useState<PlaybackState>({
+    isReady: false,
+    isPlaying: false,
+    currentTime: 0,
+    duration: 0,
+    volume: 62,
+  });
+  const volumeRef = useRef(62);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [nextUser, nextTracks] = await Promise.all([getMe(), listTracks()]);
+      setMe(nextUser);
+      setTracks(nextTracks);
+      setSelectedId((current) => current ?? nextTracks[0]?.id ?? null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const allTags = useMemo(() => {
+    return Array.from(new Set(tracks.flatMap((track) => track.tags))).slice(0, 12);
+  }, [tracks]);
+
+  const visibleTracks = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const filtered = tracks.filter((track) => {
+      if (track.visibility === "draft" && track.addedBy.id !== me?.id) {
+        return false;
+      }
+      if (tab === "mine" && track.addedBy.id !== me?.id) {
+        return false;
+      }
+      if (activeTag && !track.tags.includes(activeTag)) {
+        return false;
+      }
+      if (!normalizedQuery) {
+        return true;
+      }
+      const target = [
+        track.title,
+        track.artist,
+        track.addedBy.username,
+        track.reason,
+        ...track.tags,
+      ]
+        .join(" ")
+        .toLowerCase();
+      return target.includes(normalizedQuery);
+    });
+
+    return filtered.sort((a, b) => {
+      if (sort === "popular") {
+        return b.likes - a.likes;
+      }
+      if (sort === "viewed") {
+        return b.views - a.views;
+      }
+      return b.createdAt.localeCompare(a.createdAt);
+    });
+  }, [activeTag, me?.id, query, sort, tab, tracks]);
+
+  const selectedTrack =
+    visibleTracks.find((track) => track.id === selectedId) ??
+    tracks.find((track) => track.id === selectedId) ??
+    visibleTracks[0] ??
+    null;
+
+  useEffect(() => {
+    setPlayer(null);
+    setPlayback((current) => ({
+      ...current,
+      isReady: false,
+      isPlaying: false,
+      currentTime: 0,
+      duration: 0,
+    }));
+  }, [selectedTrack?.id]);
+
+  useEffect(() => {
+    if (!player) {
+      return;
+    }
+
+    const syncPlayback = () => {
+      setPlayback((current) => ({
+        ...current,
+        currentTime: player.getCurrentTime() || 0,
+        duration: player.getDuration() || 0,
+        isPlaying: player.getPlayerState() === 1,
+      }));
+    };
+
+    syncPlayback();
+    const timer = window.setInterval(syncPlayback, 500);
+    return () => window.clearInterval(timer);
+  }, [player]);
+
+  const handlePlayerReady = useCallback((nextPlayer: YouTubePlayer | null) => {
+    setPlayer(nextPlayer);
+
+    if (!nextPlayer) {
+      setPlayback((current) => ({
+        ...current,
+        isReady: false,
+        isPlaying: false,
+        currentTime: 0,
+        duration: 0,
+      }));
+      return;
+    }
+
+    nextPlayer.setVolume(volumeRef.current);
+    setPlayback((current) => ({
+      ...current,
+      isReady: true,
+      isPlaying: nextPlayer.getPlayerState() === 1,
+      currentTime: nextPlayer.getCurrentTime() || 0,
+      duration: nextPlayer.getDuration() || 0,
+    }));
+  }, []);
+
+  const handlePlayerStateChange = useCallback((state: number) => {
+    setPlayback((current) => ({
+      ...current,
+      isPlaying:
+        state === 1 ? true : state === 0 || state === 2 ? false : current.isPlaying,
+    }));
+  }, []);
+
+  const handleTogglePlayback = useCallback(() => {
+    if (!player || !playback.isReady) {
+      return;
+    }
+
+    if (playback.isPlaying) {
+      player.pauseVideo();
+      setPlayback((current) => ({ ...current, isPlaying: false }));
+    } else {
+      player.playVideo();
+      setPlayback((current) => ({ ...current, isPlaying: true }));
+    }
+  }, [playback.isPlaying, playback.isReady, player]);
+
+  const handleSeek = useCallback(
+    (seconds: number) => {
+      if (!player || !playback.duration) {
+        return;
+      }
+
+      const nextTime = Math.min(Math.max(seconds, 0), playback.duration);
+      player.seekTo(nextTime, true);
+      setPlayback((current) => ({ ...current, currentTime: nextTime }));
+    },
+    [playback.duration, player],
+  );
+
+  const handleSeekBy = useCallback(
+    (offset: number) => {
+      handleSeek(playback.currentTime + offset);
+    },
+    [handleSeek, playback.currentTime],
+  );
+
+  const handleVolumeChange = useCallback(
+    (volume: number) => {
+      volumeRef.current = volume;
+      player?.setVolume(volume);
+      setPlayback((current) => ({ ...current, volume }));
+    },
+    [player],
+  );
+
+  const replaceTrack = (updated: Track) => {
+    setTracks((current) =>
+      current.map((track) => (track.id === updated.id ? updated : track)),
+    );
+    setSelectedId(updated.id);
+  };
+
+  const handleLike = async (track: Track) => {
+    const updated = await setTrackLike(track.id, !track.likedByMe);
+    replaceTrack(updated);
+  };
+
+  const handleAddTimestamp = async (trackId: string, time: string, body: string) => {
+    const updated = await addTimestamp(trackId, time, body);
+    replaceTrack(updated);
+  };
+
+  const handleCreateTrack = async (input: TrackCreateInput) => {
+    const created = await createTrack(input);
+    setTracks((current) => [created, ...current]);
+    setSelectedId(created.id);
+    setView("browse");
+    setTab(input.visibility === "draft" ? "mine" : "all");
+  };
+
+  return (
+    <div className="min-h-screen bg-[#f7f8fc] pb-28 text-slate-900">
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <div className="mx-auto grid max-w-[1440px] grid-cols-[280px_180px_1fr_auto] items-center gap-7 px-6 py-4 max-xl:grid-cols-[1fr_auto] max-sm:px-3">
+          <button
+            type="button"
+            onClick={() => setView("browse")}
+            className="focus-ring flex items-center gap-4 text-left"
+          >
+            <span className="grid h-14 w-14 place-items-center rounded-lg bg-indigo-600 text-white shadow-lg shadow-indigo-500/25">
+              <Music2 className="h-7 w-7" />
+            </span>
+            <span>
+              <span className="block text-2xl font-bold tracking-normal text-slate-950">
+                Discord Music Hub
+              </span>
+              <span className="mt-1 block text-sm text-slate-500">
+                コミュニティで音楽をシェアしよう
+              </span>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            className="focus-ring flex items-center justify-center gap-3 rounded-lg border border-slate-200 px-4 py-3 font-semibold text-slate-700 max-xl:hidden"
+          >
+            <span className="grid h-6 w-6 place-items-center rounded-full bg-indigo-100 text-indigo-600">
+              <Music2 className="h-4 w-4" />
+            </span>
+            Server 2
+          </button>
+
+          <div className="grid gap-2 max-xl:col-span-2 max-sm:col-span-1">
+            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-2 shadow-sm">
+              <Search className="h-5 w-5 text-slate-500" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="タグ / キーワード / ユーザーを検索..."
+                className="focus-ring min-w-0 py-1 text-slate-800 outline-none"
+              />
+              <button
+                type="button"
+                className="focus-ring flex items-center gap-2 rounded-md border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                <Filter className="h-4 w-4" />
+                フィルター
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {allTags.slice(0, 5).map((tag) => (
+                <button
+                  type="button"
+                  key={tag}
+                  onClick={() => setActiveTag(activeTag === tag ? "" : tag)}
+                  className={clsx(
+                    "focus-ring rounded-md border px-3 py-1 text-sm font-semibold",
+                    activeTag === tag
+                      ? "border-indigo-500 bg-indigo-600 text-white"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-indigo-200",
+                  )}
+                >
+                  #{tag}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 max-xl:row-start-1 max-xl:justify-end">
+            {view === "browse" ? (
+              <>
+                <label className="relative max-md:hidden">
+                  <SlidersHorizontal className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-600" />
+                  <select
+                    value={sort}
+                    onChange={(event) => setSort(event.target.value as SortMode)}
+                    className="focus-ring h-12 appearance-none rounded-lg border border-slate-200 bg-white pl-12 pr-10 font-semibold text-slate-800"
+                  >
+                    <option value="viewed">Most viewed</option>
+                    <option value="popular">Most liked</option>
+                    <option value="newest">Newest</option>
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setView("add")}
+                  className="focus-ring grid h-14 w-14 place-items-center rounded-full bg-indigo-600 text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-500"
+                  aria-label="曲を追加"
+                >
+                  <Plus className="h-7 w-7" />
+                </button>
+              </>
+            ) : null}
+            <Bell className="h-5 w-5 text-slate-600 max-md:hidden" />
+            {me ? (
+              <div className="flex items-center gap-2 rounded-lg px-2 py-1">
+                <img src={me.avatarUrl} alt="" className="h-10 w-10 rounded-full" />
+                <span className="font-semibold text-slate-700 max-sm:hidden">
+                  {me.username}
+                </span>
+              </div>
+            ) : (
+              <a
+                href="/api/auth/discord/start"
+                className="focus-ring inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-3 font-semibold text-white"
+              >
+                <LogIn className="h-5 w-5" />
+                Discord Login
+              </a>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {view === "add" ? (
+        <AddTrackView
+          currentUser={me}
+          onCancel={() => setView("browse")}
+          onSubmit={handleCreateTrack}
+        />
+      ) : (
+        <main className="mx-auto grid max-w-[1440px] grid-cols-[1fr_420px] gap-4 px-6 pt-6 max-lg:grid-cols-1 max-sm:px-3">
+          <section className="min-w-0">
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <div className="flex gap-8 border-b border-slate-200 text-sm font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setTab("all")}
+                  className={clsx(
+                    "focus-ring border-b-2 px-4 py-3",
+                    tab === "all"
+                      ? "border-indigo-600 text-indigo-700"
+                      : "border-transparent text-slate-500",
+                  )}
+                >
+                  すべての楽曲
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTab("mine")}
+                  className={clsx(
+                    "focus-ring border-b-2 px-4 py-3",
+                    tab === "mine"
+                      ? "border-indigo-600 text-indigo-700"
+                      : "border-transparent text-slate-500",
+                  )}
+                >
+                  自分の投稿
+                </button>
+              </div>
+              <div className="flex items-center gap-4 text-sm font-semibold text-slate-600">
+                <span>{visibleTracks.length}件の楽曲</span>
+                <button
+                  type="button"
+                  onClick={() => void load()}
+                  className="focus-ring rounded-md p-2 hover:bg-white"
+                  aria-label="再読み込み"
+                >
+                  <RefreshCcw className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {loading ? (
+                <div className="soft-card rounded-lg p-8 text-center text-slate-500">
+                  読み込み中...
+                </div>
+              ) : visibleTracks.length === 0 ? (
+                <div className="soft-card rounded-lg p-8 text-center text-slate-500">
+                  条件に合う曲がありません
+                </div>
+              ) : (
+                visibleTracks.map((track) => (
+                  <TrackCard
+                    key={track.id}
+                    track={track}
+                    active={selectedTrack?.id === track.id}
+                    onSelect={(nextTrack) => setSelectedId(nextTrack.id)}
+                    onLike={handleLike}
+                  />
+                ))
+              )}
+            </div>
+          </section>
+
+          {selectedTrack ? (
+            <TrackDetail
+              track={selectedTrack}
+              onLike={handleLike}
+              onAddTimestamp={handleAddTimestamp}
+              playerVolume={playback.volume}
+              onPlayerReady={handlePlayerReady}
+              onPlayerStateChange={handlePlayerStateChange}
+            />
+          ) : null}
+        </main>
+      )}
+
+      {view === "browse" ? (
+        <PlayerBar
+          track={selectedTrack}
+          isReady={playback.isReady}
+          isPlaying={playback.isPlaying}
+          currentTime={playback.currentTime}
+          duration={playback.duration}
+          volume={playback.volume}
+          onTogglePlayback={handleTogglePlayback}
+          onSeek={handleSeek}
+          onSeekBy={handleSeekBy}
+          onVolumeChange={handleVolumeChange}
+        />
+      ) : null}
+    </div>
+  );
+}

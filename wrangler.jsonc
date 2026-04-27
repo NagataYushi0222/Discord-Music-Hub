@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "discord-music-hub",
+  "compatibility_date": "2026-04-27",
+  "pages_build_output_dir": "dist",
+  "vars": {
+    "DEV_AUTH": "true"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "discord_music_hub",
+      "database_id": "discord_music_hub"
+    }
+  ]
+}
