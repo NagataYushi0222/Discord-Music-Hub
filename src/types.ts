@@ -35,6 +35,7 @@ export type Track = {
   title: string;
   artist: string;
   thumbnailUrl: string;
+  genre: string;
   addedBy: AppUser;
   tags: string[];
   reason: string;
@@ -57,6 +58,7 @@ export type TrackCreateInput = {
   title: string;
   artist: string;
   thumbnailUrl: string;
+  genre: string;
   tags: string[];
   reason: string;
   timestamps: DraftTimestamp[];

@@ -54,6 +54,7 @@ export const seedTracks: Track[] = [
     title: "夜に駆ける",
     artist: "YOASOBI",
     thumbnailUrl: "https://img.youtube.com/vi/x8VYWazR5mE/hqdefault.jpg",
+    genre: "J-POP",
     addedBy: users[0],
     tags: ["青春", "夜", "通学"],
     reason:
@@ -94,6 +95,7 @@ export const seedTracks: Track[] = [
     title: "水平線",
     artist: "back number",
     thumbnailUrl: "https://img.youtube.com/vi/iqEr3P78fz8/hqdefault.jpg",
+    genre: "バラード",
     addedBy: users[1],
     tags: ["ドライブ", "海", "エモい"],
     reason:
@@ -120,6 +122,7 @@ export const seedTracks: Track[] = [
     title: "怪獣の花唄",
     artist: "Vaundy",
     thumbnailUrl: "https://img.youtube.com/vi/UM9XNpgrqVk/hqdefault.jpg",
+    genre: "ロック",
     addedBy: users[2],
     tags: ["作業用", "落ち着く", "夜"],
     reason:
@@ -146,6 +149,7 @@ export const seedTracks: Track[] = [
     title: "光の中へ",
     artist: "結束バンド",
     thumbnailUrl: "https://img.youtube.com/vi/29t3pJd75XU/hqdefault.jpg",
+    genre: "アニメ",
     addedBy: users[3],
     tags: ["希望", "朝", "元気が出る"],
     reason:
@@ -157,19 +161,4 @@ export const seedTracks: Track[] = [
     visibility: "public",
     createdAt: "2026-04-23T12:00:00.000Z",
   },
-];
-
-export const suggestedTags = [
-  "青春",
-  "夜",
-  "通学",
-  "作業用",
-  "ドライブ",
-  "エモい",
-  "落ち着く",
-  "朝",
-  "元気が出る",
-  "海",
-  "希望",
-  "泣ける",
 ];

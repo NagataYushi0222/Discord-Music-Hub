@@ -17,6 +17,7 @@ import { TrackDetail } from "./components/TrackDetail";
 import {
   addTimestamp,
   createTrack,
+  deleteTrack,
   getGuildSelection,
   getMe,
   listTracks,
@@ -60,6 +61,7 @@ export default function App() {
     volume: 62,
   });
   const volumeRef = useRef(62);
+  const autoPlayNextTrackRef = useRef(false);
 
   const load = async () => {
     setLoading(true);
@@ -100,6 +102,38 @@ export default function App() {
     return guilds.find((guild) => guild.id === selectedGuildId) ?? null;
   }, [guilds, selectedGuildId]);
 
+  const tagSuggestions = useMemo(() => {
+    const latestByTag = new Map<string, string>();
+    for (const track of tracks) {
+      for (const tag of track.tags) {
+        const current = latestByTag.get(tag);
+        if (!current || track.createdAt > current) {
+          latestByTag.set(tag, track.createdAt);
+        }
+      }
+    }
+    return [...latestByTag.entries()]
+      .sort((a, b) => b[1].localeCompare(a[1]) || a[0].localeCompare(b[0]))
+      .map(([tag]) => tag);
+  }, [tracks]);
+
+  const genreSuggestions = useMemo(() => {
+    const latestByGenre = new Map<string, string>();
+    for (const track of tracks) {
+      const genre = track.genre?.trim();
+      if (!genre) {
+        continue;
+      }
+      const current = latestByGenre.get(genre);
+      if (!current || track.createdAt > current) {
+        latestByGenre.set(genre, track.createdAt);
+      }
+    }
+    return [...latestByGenre.entries()]
+      .sort((a, b) => b[1].localeCompare(a[1]) || a[0].localeCompare(b[0]))
+      .map(([genre]) => genre);
+  }, [tracks]);
+
   const visibleTracks = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     const filtered = tracks.filter((track) => {
@@ -118,6 +152,7 @@ export default function App() {
       const target = [
         track.title,
         track.artist,
+        track.genre,
         track.addedBy.username,
         track.reason,
         ...track.tags,
@@ -140,9 +175,33 @@ export default function App() {
 
   const selectedTrack =
     visibleTracks.find((track) => track.id === selectedId) ??
-    tracks.find((track) => track.id === selectedId) ??
     visibleTracks[0] ??
+    tracks.find((track) => track.id === selectedId) ??
     null;
+
+  const currentVisibleIndex = useMemo(() => {
+    if (!selectedTrack) {
+      return -1;
+    }
+    return visibleTracks.findIndex((track) => track.id === selectedTrack.id);
+  }, [selectedTrack, visibleTracks]);
+
+  const hasPreviousTrack = currentVisibleIndex > 0;
+  const hasNextTrack =
+    currentVisibleIndex >= 0 && currentVisibleIndex < visibleTracks.length - 1;
+
+  const selectTrackByOffset = useCallback(
+    (offset: number, autoPlay = true) => {
+      const nextIndex = currentVisibleIndex + offset;
+      const nextTrack = visibleTracks[nextIndex];
+      if (!nextTrack) {
+        return;
+      }
+      autoPlayNextTrackRef.current = autoPlay;
+      setSelectedId(nextTrack.id);
+    },
+    [currentVisibleIndex, visibleTracks],
+  );
 
   useEffect(() => {
     setPlayer(null);
@@ -189,6 +248,10 @@ export default function App() {
     }
 
     nextPlayer.setVolume(volumeRef.current);
+    if (autoPlayNextTrackRef.current) {
+      nextPlayer.playVideo();
+      autoPlayNextTrackRef.current = false;
+    }
     setPlayback((current) => ({
       ...current,
       isReady: true,
@@ -198,13 +261,20 @@ export default function App() {
     }));
   }, []);
 
-  const handlePlayerStateChange = useCallback((state: number) => {
-    setPlayback((current) => ({
-      ...current,
-      isPlaying:
-        state === 1 ? true : state === 0 || state === 2 ? false : current.isPlaying,
-    }));
-  }, []);
+  const handlePlayerStateChange = useCallback(
+    (state: number) => {
+      setPlayback((current) => ({
+        ...current,
+        isPlaying:
+          state === 1 ? true : state === 0 || state === 2 ? false : current.isPlaying,
+      }));
+
+      if (state === 0 && hasNextTrack) {
+        selectTrackByOffset(1, true);
+      }
+    },
+    [hasNextTrack, selectTrackByOffset],
+  );
 
   const handleTogglePlayback = useCallback(() => {
     if (!player || !playback.isReady) {
@@ -278,6 +348,25 @@ export default function App() {
         error instanceof Error
           ? error.message
           : "タイムスタンプコメントの追加に失敗しました。",
+      );
+    }
+  };
+
+  const handleDeleteTrack = async (track: Track) => {
+    if (!window.confirm("この曲を削除しますか？")) {
+      return;
+    }
+
+    setErrorMessage("");
+    try {
+      await deleteTrack(track.id);
+      const remaining = tracks.filter((item) => item.id !== track.id);
+      setTracks(remaining);
+      const nextVisible = visibleTracks.filter((item) => item.id !== track.id);
+      setSelectedId(nextVisible[0]?.id ?? remaining[0]?.id ?? null);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "曲の削除に失敗しました。",
       );
     }
   };
@@ -481,6 +570,9 @@ export default function App() {
       {view === "add" ? (
         <AddTrackView
           currentUser={me}
+          tracks={tracks}
+          tagSuggestions={tagSuggestions}
+          genreSuggestions={genreSuggestions}
           onCancel={() => setView("browse")}
           onSubmit={handleCreateTrack}
         />
@@ -555,6 +647,8 @@ export default function App() {
               track={selectedTrack}
               onLike={handleLike}
               onAddTimestamp={handleAddTimestamp}
+              canDelete={selectedTrack.addedBy.id === me?.id}
+              onDelete={handleDeleteTrack}
               playerVolume={playback.volume}
               onPlayerReady={handlePlayerReady}
               onPlayerStateChange={handlePlayerStateChange}
@@ -574,7 +668,11 @@ export default function App() {
           onTogglePlayback={handleTogglePlayback}
           onSeek={handleSeek}
           onSeekBy={handleSeekBy}
+          onPreviousTrack={() => selectTrackByOffset(-1, true)}
+          onNextTrack={() => selectTrackByOffset(1, true)}
           onVolumeChange={handleVolumeChange}
+          hasPreviousTrack={hasPreviousTrack}
+          hasNextTrack={hasNextTrack}
         />
       ) : null}
     </div>

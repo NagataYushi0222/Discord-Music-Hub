@@ -36,7 +36,8 @@ export async function listUserGuilds(
       ORDER BY name COLLATE NOCASE`,
   )
     .bind(userId)
-    .all<GuildRow>();
+    .all<GuildRow>()
+    .catch(() => ({ results: [] }));
 
   return rows.results.map(mapGuild);
 }
@@ -49,7 +50,8 @@ export async function getSelectedGuildId(
     "SELECT selected_guild_id FROM users WHERE id = ?",
   )
     .bind(userId)
-    .first<{ selected_guild_id: string | null }>();
+    .first<{ selected_guild_id: string | null }>()
+    .catch(() => null);
 
   return row?.selected_guild_id ?? null;
 }
@@ -61,7 +63,8 @@ export async function replaceUserGuilds(
 ) {
   await env.DB.prepare("DELETE FROM user_guilds WHERE user_id = ?")
     .bind(userId)
-    .run();
+    .run()
+    .catch(() => null);
 
   for (const guild of guilds) {
     await env.DB.prepare(
@@ -77,7 +80,8 @@ export async function replaceUserGuilds(
         guild.owner ? 1 : 0,
         guild.permissions,
       )
-      .run();
+      .run()
+      .catch(() => null);
   }
 
   const current = await getSelectedGuildId(env, userId);
@@ -88,7 +92,8 @@ export async function replaceUserGuilds(
 
   await env.DB.prepare("UPDATE users SET selected_guild_id = ? WHERE id = ?")
     .bind(next, userId)
-    .run();
+    .run()
+    .catch(() => null);
 }
 
 export async function selectUserGuild(
@@ -100,7 +105,8 @@ export async function selectUserGuild(
     "SELECT 1 AS found FROM user_guilds WHERE user_id = ? AND guild_id = ?",
   )
     .bind(userId, guildId)
-    .first<{ found: number }>();
+    .first<{ found: number }>()
+    .catch(() => null);
 
   if (!row) {
     return false;
@@ -108,7 +114,8 @@ export async function selectUserGuild(
 
   await env.DB.prepare("UPDATE users SET selected_guild_id = ? WHERE id = ?")
     .bind(guildId, userId)
-    .run();
+    .run()
+    .catch(() => null);
 
   return true;
 }

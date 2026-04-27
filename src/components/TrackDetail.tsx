@@ -5,6 +5,7 @@ import {
   Heart,
   Send,
   Share2,
+  Trash2,
   UserRound,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -20,6 +21,8 @@ type TrackDetailProps = {
   track: Track;
   onLike: (track: Track) => void;
   onAddTimestamp: (trackId: string, time: string, body: string) => void;
+  canDelete: boolean;
+  onDelete: (track: Track) => void;
   playerVolume: number;
   onPlayerReady: (player: YouTubePlayer | null) => void;
   onPlayerStateChange: (state: number) => void;
@@ -29,6 +32,8 @@ export function TrackDetail({
   track,
   onLike,
   onAddTimestamp,
+  canDelete,
+  onDelete,
   playerVolume,
   onPlayerReady,
   onPlayerStateChange,
@@ -202,6 +207,11 @@ export function TrackDetail({
             </span>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
+            {track.genre ? (
+              <span className="rounded-md border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                {track.genre}
+              </span>
+            ) : null}
             {track.tags.map((tag) => (
               <span
                 key={tag}
@@ -296,7 +306,7 @@ export function TrackDetail({
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-3">
+      <div className={clsx("mt-5 grid gap-3", canDelete ? "grid-cols-3" : "grid-cols-2")}>
         <a
           href={track.youtubeUrl}
           target="_blank"
@@ -313,6 +323,16 @@ export function TrackDetail({
           <Share2 className="h-5 w-5" />
           シェア
         </button>
+        {canDelete ? (
+          <button
+            type="button"
+            onClick={() => onDelete(track)}
+            className="focus-ring flex items-center justify-center gap-2 rounded-lg border border-red-200 px-4 py-3 font-semibold text-red-600 hover:bg-red-50"
+          >
+            <Trash2 className="h-5 w-5" />
+            削除
+          </button>
+        ) : null}
       </div>
     </aside>
   );

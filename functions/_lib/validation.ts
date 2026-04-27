@@ -1,6 +1,7 @@
 export const MAX_REASON_LENGTH = 300;
 export const MAX_TAGS = 12;
 export const MAX_TAG_LENGTH = 24;
+export const MAX_GENRE_LENGTH = 40;
 export const MAX_TIMESTAMP_BODY_LENGTH = 160;
 
 export type ValidationResult<T> =
@@ -82,6 +83,26 @@ export function validateTags(value: unknown): ValidationResult<string[]> {
   return { ok: true, value: tags };
 }
 
+export function validateGenre(value: unknown): ValidationResult<string> {
+  if (value === undefined || value === null) {
+    return { ok: true, value: "" };
+  }
+
+  if (typeof value !== "string") {
+    return { ok: false, error: "Genre must be a string." };
+  }
+
+  const genre = value.trim();
+  if (genre.length > MAX_GENRE_LENGTH) {
+    return {
+      ok: false,
+      error: `Genre must be ${MAX_GENRE_LENGTH} characters or less.`,
+    };
+  }
+
+  return { ok: true, value: genre };
+}
+
 export function parseTimestampSeconds(value: string): number | null {
   const input = value.trim();
   if (!input || input.startsWith("-")) {
@@ -154,6 +175,23 @@ export function validateTimestamps(
 
   const timestamps: { time: string; body: string }[] = [];
   for (const item of value) {
+    if (
+      item &&
+      typeof item === "object" &&
+      "time" in item &&
+      "body" in item
+    ) {
+      const raw = item as { time?: unknown; body?: unknown };
+      if (
+        typeof raw.time === "string" &&
+        typeof raw.body === "string" &&
+        !raw.time.trim() &&
+        !raw.body.trim()
+      ) {
+        continue;
+      }
+    }
+
     const result = validateTimestamp(item);
     if (!result.ok) {
       return result;

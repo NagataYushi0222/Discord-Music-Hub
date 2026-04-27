@@ -5,6 +5,7 @@ import { getTrackById, listTracks } from "../../_lib/tracks";
 import type { Env } from "../../_lib/types";
 import { extractYouTubeVideoId, fetchYoutubeMetadata } from "../../_lib/youtube";
 import {
+  validateGenre,
   validateReason,
   validateTags,
   validateTimestamps,
@@ -17,11 +18,19 @@ type CreateTrackBody = {
   title?: string;
   artist?: string;
   thumbnailUrl?: string;
+  genre?: string;
   tags?: string[];
   reason?: string;
   timestamps?: { time: string; body: string }[];
   visibility?: "public" | "draft";
 };
+
+async function getTrackColumns(env: Env) {
+  const rows = await env.DB.prepare("PRAGMA table_info(tracks)")
+    .all<{ name: string }>()
+    .catch(() => ({ results: [] }));
+  return new Set(rows.results.map((row) => row.name));
+}
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const user = await requireUser(request, env).catch(() => null);
@@ -62,6 +71,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return badRequest(tags.error);
   }
 
+  const genre = validateGenre(body.genre);
+  if (!genre.ok) {
+    return badRequest(genre.error);
+  }
+
   const timestamps = validateTimestamps(body.timestamps);
   if (!timestamps.ok) {
     return badRequest(timestamps.error);
@@ -84,25 +98,48 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const id = `track_${crypto.randomUUID()}`;
   const selectedGuildId = await getSelectedGuildId(env, user.id);
+  const trackColumns = await getTrackColumns(env);
+  const insertColumns = [
+    "id",
+    "youtube_url",
+    "video_id",
+    "title",
+    "artist",
+    "thumbnail_url",
+    "added_by_user_id",
+    "reason",
+    "visibility",
+  ];
+  const insertValues: (string | null)[] = [
+    id,
+    body.youtubeUrl,
+    extractedVideoId,
+    metadata.title,
+    metadata.authorName,
+    metadata.thumbnailUrl,
+    user.id,
+    reason.value,
+    visibility.value,
+  ];
+
+  if (trackColumns.has("genre")) {
+    insertColumns.splice(6, 0, "genre");
+    insertValues.splice(6, 0, genre.value);
+  }
+
+  if (trackColumns.has("guild_id")) {
+    const genreOffset = trackColumns.has("genre") ? 7 : 6;
+    insertColumns.splice(genreOffset, 0, "guild_id");
+    insertValues.splice(genreOffset, 0, selectedGuildId);
+  }
 
   await ensureUser(env, user);
   await env.DB.prepare(
     `INSERT INTO tracks
-      (id, youtube_url, video_id, title, artist, thumbnail_url, guild_id, added_by_user_id, reason, visibility)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (${insertColumns.join(", ")})
+     VALUES (${insertColumns.map(() => "?").join(", ")})`,
   )
-    .bind(
-      id,
-      body.youtubeUrl,
-      extractedVideoId,
-      metadata.title,
-      metadata.authorName,
-      metadata.thumbnailUrl,
-      selectedGuildId,
-      user.id,
-      reason.value,
-      visibility.value,
-    )
+    .bind(...insertValues)
     .run();
 
   for (const tag of tags.value) {

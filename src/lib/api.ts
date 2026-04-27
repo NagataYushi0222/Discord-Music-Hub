@@ -8,6 +8,7 @@ import type {
 import {
   localAddTimestamp,
   localCreateTrack,
+  localDeleteTrack,
   localGetGuildSelection,
   localGetMe,
   localListTracks,
@@ -91,6 +92,16 @@ export async function createTrack(input: TrackCreateInput): Promise<Track> {
   return requestJson<Track>("/api/tracks", {
     method: "POST",
     body: JSON.stringify(input),
+  });
+}
+
+export async function deleteTrack(trackId: string): Promise<{ ok: true }> {
+  if (useLocalMock) {
+    return localDeleteTrack(trackId);
+  }
+
+  return requestJson<{ ok: true }>(`/api/tracks/${trackId}`, {
+    method: "DELETE",
   });
 }
 

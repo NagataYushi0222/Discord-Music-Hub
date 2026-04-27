@@ -65,6 +65,7 @@ export type TrackRow = {
   title: string;
   artist: string;
   thumbnail_url: string;
+  genre?: string | null;
   guild_id?: string | null;
   added_by_user_id: string;
   reason: string;

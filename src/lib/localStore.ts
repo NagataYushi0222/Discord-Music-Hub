@@ -14,6 +14,15 @@ function cloneTracks(tracks: Track[]): Track[] {
   return JSON.parse(JSON.stringify(tracks)) as Track[];
 }
 
+function normalizeStoredTracks(tracks: Track[]): Track[] {
+  return tracks.map((track) => ({
+    ...track,
+    genre: track.genre ?? "",
+    tags: track.tags ?? [],
+    timestamps: track.timestamps ?? [],
+  }));
+}
+
 function readTracks(): Track[] {
   const saved = window.localStorage.getItem(TRACKS_KEY);
   if (!saved) {
@@ -23,7 +32,9 @@ function readTracks(): Track[] {
   }
 
   try {
-    return JSON.parse(saved) as Track[];
+    const tracks = normalizeStoredTracks(JSON.parse(saved) as Track[]);
+    window.localStorage.setItem(TRACKS_KEY, JSON.stringify(tracks));
+    return tracks;
   } catch {
     const initial = cloneTracks(seedTracks);
     window.localStorage.setItem(TRACKS_KEY, JSON.stringify(initial));
@@ -76,6 +87,7 @@ export async function localCreateTrack(input: TrackCreateInput): Promise<Track> 
     title: input.title,
     artist: input.artist,
     thumbnailUrl: input.thumbnailUrl,
+    genre: input.genre,
     addedBy: devUser,
     tags: input.tags,
     reason: input.reason,
@@ -89,6 +101,12 @@ export async function localCreateTrack(input: TrackCreateInput): Promise<Track> 
 
   writeTracks([track, ...tracks]);
   return track;
+}
+
+export async function localDeleteTrack(trackId: string): Promise<{ ok: true }> {
+  const tracks = readTracks();
+  writeTracks(tracks.filter((track) => track.id !== trackId));
+  return { ok: true };
 }
 
 export async function localSetLike(

@@ -4,7 +4,8 @@ import {
   Pause,
   Play,
   Repeat2,
-  Shuffle,
+  RotateCcw,
+  RotateCw,
   SkipBack,
   SkipForward,
   Volume2,
@@ -23,7 +24,11 @@ type PlayerBarProps = {
   onTogglePlayback: () => void;
   onSeek: (seconds: number) => void;
   onSeekBy: (offset: number) => void;
+  onPreviousTrack: () => void;
+  onNextTrack: () => void;
   onVolumeChange: (volume: number) => void;
+  hasPreviousTrack: boolean;
+  hasNextTrack: boolean;
 };
 
 export function PlayerBar({
@@ -36,7 +41,11 @@ export function PlayerBar({
   onTogglePlayback,
   onSeek,
   onSeekBy,
+  onPreviousTrack,
+  onNextTrack,
   onVolumeChange,
+  hasPreviousTrack,
+  hasNextTrack,
 }: PlayerBarProps) {
   const handleSeek = (event: ChangeEvent<HTMLInputElement>) => {
     onSeek(Number(event.target.value));
@@ -83,17 +92,27 @@ export function PlayerBar({
           </div>
 
           <div className="grid gap-2">
-            <div className="flex items-center justify-center gap-6 text-slate-700 max-sm:gap-4">
-              <Shuffle className="h-5 w-5" />
+            <div className="flex items-center justify-center gap-3 text-slate-700 max-sm:gap-2">
+              <button
+                type="button"
+                disabled={!hasPreviousTrack}
+                onClick={onPreviousTrack}
+                className="focus-ring rounded-md p-1.5 disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="前の曲へ"
+                title="前の曲へ"
+              >
+                <SkipBack className="h-5 w-5 fill-current" />
+              </button>
               <button
                 type="button"
                 disabled={!canControl}
                 onClick={() => onSeekBy(-10)}
-                className="focus-ring rounded-md p-1 disabled:cursor-not-allowed disabled:opacity-40"
+                className="focus-ring inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40"
                 aria-label="10秒戻る"
                 title="10秒戻る"
               >
-                <SkipBack className="h-5 w-5 fill-current" />
+                <RotateCcw className="h-4 w-4" />
+                10秒
               </button>
               <button
                 type="button"
@@ -112,9 +131,20 @@ export function PlayerBar({
                 type="button"
                 disabled={!canControl}
                 onClick={() => onSeekBy(10)}
-                className="focus-ring rounded-md p-1 disabled:cursor-not-allowed disabled:opacity-40"
+                className="focus-ring inline-flex items-center gap-1 rounded-md border border-slate-200 px-2 py-1 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40"
                 aria-label="10秒進む"
                 title="10秒進む"
+              >
+                10秒
+                <RotateCw className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                disabled={!hasNextTrack}
+                onClick={onNextTrack}
+                className="focus-ring rounded-md p-1.5 disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label="次の曲へ"
+                title="次の曲へ"
               >
                 <SkipForward className="h-5 w-5 fill-current" />
               </button>

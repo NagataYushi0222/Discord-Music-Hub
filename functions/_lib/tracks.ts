@@ -100,6 +100,7 @@ async function hydrateTrack(
     title: row.title,
     artist: row.artist,
     thumbnailUrl: row.thumbnail_url,
+    genre: row.genre ?? "",
     addedBy: mapUser(row),
     tags,
     reason: row.reason,
@@ -118,7 +119,7 @@ export async function listTracks(
   guildId?: string | null,
 ): Promise<Track[]> {
   const guildFilter = guildId
-    ? "AND tracks.guild_id = ?"
+    ? "AND (tracks.guild_id = ? OR tracks.guild_id IS NULL)"
     : "";
   const params = guildId ? [viewerId ?? "", guildId] : [viewerId ?? ""];
   const rows = await env.DB.prepare(
