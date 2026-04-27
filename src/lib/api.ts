@@ -14,7 +14,7 @@ import {
 import { fetchYoutubeMetadata } from "./youtube";
 
 const useLocalMock =
-  import.meta.env.DEV || import.meta.env.VITE_USE_LOCAL_MOCK === "true";
+  import.meta.env.DEV && import.meta.env.VITE_USE_LOCAL_MOCK !== "false";
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -28,7 +28,14 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `API error: ${response.status}`);
+    let message = text;
+    try {
+      const data = JSON.parse(text) as { error?: string };
+      message = data.error || message;
+    } catch {
+      // Plain text error bodies are fine; keep the original message.
+    }
+    throw new Error(message || `API error: ${response.status}`);
   }
 
   return (await response.json()) as T;

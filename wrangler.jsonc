@@ -4,13 +4,13 @@
   "compatibility_date": "2026-04-27",
   "pages_build_output_dir": "dist",
   "vars": {
-    "DEV_AUTH": "true"
+    "DEV_AUTH": "false"
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "discord_music_hub",
-      "database_id": "discord_music_hub"
+      "database_id": "cab4d6f4-e8e5-4b9a-b69e-af4424cefba8"
     }
   ]
 }

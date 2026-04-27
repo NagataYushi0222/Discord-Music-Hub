@@ -2,6 +2,7 @@ import { requireUser } from "../../../_lib/auth";
 import { badRequest, json, notFound, readJson, unauthorized } from "../../../_lib/http";
 import { ensureTrackVisible, getTrackById } from "../../../_lib/tracks";
 import type { Env } from "../../../_lib/types";
+import { validateTimestamp } from "../../../_lib/validation";
 
 type TimestampBody = {
   time?: string;
@@ -23,8 +24,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   if (body instanceof Error) {
     return badRequest(body.message);
   }
-  if (!body.time?.trim() || !body.body?.trim()) {
-    return badRequest("Time and body are required.");
+  const timestamp = validateTimestamp(body);
+  if (!timestamp.ok) {
+    return badRequest(timestamp.error);
   }
 
   await env.DB.prepare(
@@ -35,8 +37,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
       `ts_${crypto.randomUUID()}`,
       trackId,
       user.id,
-      body.time.trim(),
-      body.body.trim(),
+      timestamp.value.time,
+      timestamp.value.body,
     )
     .run();
 

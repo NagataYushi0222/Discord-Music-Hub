@@ -3,6 +3,12 @@ import { badRequest, json, readJson, unauthorized } from "../../_lib/http";
 import { getTrackById, listTracks } from "../../_lib/tracks";
 import type { Env } from "../../_lib/types";
 import { extractYouTubeVideoId, fetchYoutubeMetadata } from "../../_lib/youtube";
+import {
+  validateReason,
+  validateTags,
+  validateTimestamps,
+  validateVisibility,
+} from "../../_lib/validation";
 
 type CreateTrackBody = {
   youtubeUrl?: string;
@@ -33,13 +39,33 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return badRequest(body.message);
   }
 
-  if (!body.youtubeUrl || !body.reason?.trim()) {
-    return badRequest("YouTube URL and reason are required.");
+  if (!body.youtubeUrl) {
+    return badRequest("YouTube URL is required.");
   }
 
   const extractedVideoId = extractYouTubeVideoId(body.youtubeUrl);
   if (!extractedVideoId) {
     return badRequest("Invalid YouTube URL.");
+  }
+
+  const reason = validateReason(body.reason);
+  if (!reason.ok) {
+    return badRequest(reason.error);
+  }
+
+  const tags = validateTags(body.tags);
+  if (!tags.ok) {
+    return badRequest(tags.error);
+  }
+
+  const timestamps = validateTimestamps(body.timestamps);
+  if (!timestamps.ok) {
+    return badRequest(timestamps.error);
+  }
+
+  const visibility = validateVisibility(body.visibility);
+  if (!visibility.ok) {
+    return badRequest(visibility.error);
   }
 
   const metadata =
@@ -53,10 +79,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       : await fetchYoutubeMetadata(body.youtubeUrl);
 
   const id = `track_${crypto.randomUUID()}`;
-  const tags = Array.from(
-    new Set((body.tags ?? []).map((tag) => tag.trim()).filter(Boolean)),
-  ).slice(0, 12);
-  const visibility = body.visibility === "draft" ? "draft" : "public";
 
   await ensureUser(env, user);
   await env.DB.prepare(
@@ -72,21 +94,18 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       metadata.authorName,
       metadata.thumbnailUrl,
       user.id,
-      body.reason.trim(),
-      visibility,
+      reason.value,
+      visibility.value,
     )
     .run();
 
-  for (const tag of tags) {
+  for (const tag of tags.value) {
     await env.DB.prepare("INSERT OR IGNORE INTO track_tags (track_id, tag) VALUES (?, ?)")
       .bind(id, tag)
       .run();
   }
 
-  for (const timestamp of body.timestamps ?? []) {
-    if (!timestamp.time.trim() || !timestamp.body.trim()) {
-      continue;
-    }
+  for (const timestamp of timestamps.value) {
     await env.DB.prepare(
       `INSERT INTO timestamp_comments (id, track_id, user_id, time, body)
        VALUES (?, ?, ?, ?, ?)`,
@@ -95,8 +114,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         `ts_${crypto.randomUUID()}`,
         id,
         user.id,
-        timestamp.time.trim(),
-        timestamp.body.trim(),
+        timestamp.time,
+        timestamp.body,
       )
       .run();
   }

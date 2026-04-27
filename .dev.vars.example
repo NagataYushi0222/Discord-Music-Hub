@@ -1,0 +1,10 @@
+# Copy this file to .dev.vars for local Cloudflare Pages Functions testing.
+# Do not commit .dev.vars.
+
+DEV_AUTH=true
+
+# Optional local OAuth test values.
+DISCORD_CLIENT_ID=
+DISCORD_CLIENT_SECRET=
+DISCORD_REDIRECT_URI=http://localhost:8788/api/auth/discord/callback
+APP_URL=http://localhost:8788

@@ -3,7 +3,6 @@ import {
   Clock3,
   ExternalLink,
   Heart,
-  Play,
   Send,
   Share2,
   UserRound,
@@ -36,7 +35,7 @@ export function TrackDetail({
 }: TrackDetailProps) {
   const [time, setTime] = useState("");
   const [body, setBody] = useState("");
-  const [showCover, setShowCover] = useState(true);
+  const [playerError, setPlayerError] = useState("");
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<YouTubePlayer | null>(null);
   const pendingStartRef = useRef<number | null>(null);
@@ -52,7 +51,7 @@ export function TrackDetail({
     const mount = document.createElement("div");
     mount.className = "h-full w-full";
     container.replaceChildren(mount);
-    setShowCover(true);
+    setPlayerError("");
     onPlayerReady(null);
 
     void loadYouTubeApi().then((YT) => {
@@ -93,11 +92,18 @@ export function TrackDetail({
           },
           onStateChange: (event) => {
             if (typeof event.data === "number") {
-              if (event.data === 1) {
-                setShowCover(false);
-              }
               onPlayerStateChange(event.data);
             }
+          },
+          onError: (event) => {
+            const message =
+              event.data === 100
+                ? "この動画は削除済み、非公開、または存在しないため再生できません。"
+                : event.data === 101 || event.data === 150
+                  ? "この動画は埋め込み再生が許可されていません。年齢制限がある場合もYouTube上での視聴が必要です。"
+                  : "この動画は埋め込み再生できません。";
+            setPlayerError(message);
+            onPlayerReady(null);
           },
         },
       });
@@ -142,22 +148,12 @@ export function TrackDetail({
     const seconds = timestampToSeconds(timestamp);
     pendingStartRef.current = seconds;
     pendingPlayRef.current = true;
-    setShowCover(false);
+    setPlayerError("");
 
     if (playerRef.current) {
       playerRef.current.seekTo(seconds, true);
       playerRef.current.playVideo();
       pendingStartRef.current = null;
-      pendingPlayRef.current = false;
-    }
-  };
-
-  const playFromCover = () => {
-    pendingPlayRef.current = true;
-    setShowCover(false);
-
-    if (playerRef.current) {
-      playerRef.current.playVideo();
       pendingPlayRef.current = false;
     }
   };
@@ -171,23 +167,21 @@ export function TrackDetail({
             className="h-full w-full"
             title={`${track.title} YouTube player`}
           />
-          {showCover ? (
-            <button
-              type="button"
-              onClick={playFromCover}
-              className="focus-ring absolute inset-0 grid place-items-center overflow-hidden bg-slate-950 text-white"
-              aria-label={`${track.title}を再生`}
-            >
-              <img
-                src={track.thumbnailUrl}
-                alt=""
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-              <span className="absolute inset-0 bg-slate-950/20" />
-              <span className="relative grid h-14 w-14 place-items-center rounded-full border border-white/70 bg-white/20 text-white shadow-lg backdrop-blur-sm transition hover:scale-105">
-                <Play className="h-6 w-6 fill-current" />
-              </span>
-            </button>
+          {playerError ? (
+            <div className="absolute inset-0 grid place-items-center bg-slate-950/90 p-4 text-center text-white">
+              <div>
+                <p className="text-sm font-semibold leading-6">{playerError}</p>
+                <a
+                  href={track.youtubeUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="focus-ring mt-4 inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  YouTubeで開く
+                </a>
+              </div>
+            </div>
           ) : null}
         </div>
 

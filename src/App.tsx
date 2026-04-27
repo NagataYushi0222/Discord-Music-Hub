@@ -39,6 +39,7 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [me, setMe] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
   const [player, setPlayer] = useState<YouTubePlayer | null>(null);
   const [playback, setPlayback] = useState<PlaybackState>({
     isReady: false,
@@ -51,11 +52,16 @@ export default function App() {
 
   const load = async () => {
     setLoading(true);
+    setErrorMessage("");
     try {
       const [nextUser, nextTracks] = await Promise.all([getMe(), listTracks()]);
       setMe(nextUser);
       setTracks(nextTracks);
       setSelectedId((current) => current ?? nextTracks[0]?.id ?? null);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "曲一覧の読み込みに失敗しました。",
+      );
     } finally {
       setLoading(false);
     }
@@ -226,21 +232,44 @@ export default function App() {
   };
 
   const handleLike = async (track: Track) => {
-    const updated = await setTrackLike(track.id, !track.likedByMe);
-    replaceTrack(updated);
+    setErrorMessage("");
+    try {
+      const updated = await setTrackLike(track.id, !track.likedByMe);
+      replaceTrack(updated);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "いいねに失敗しました。",
+      );
+    }
   };
 
   const handleAddTimestamp = async (trackId: string, time: string, body: string) => {
-    const updated = await addTimestamp(trackId, time, body);
-    replaceTrack(updated);
+    setErrorMessage("");
+    try {
+      const updated = await addTimestamp(trackId, time, body);
+      replaceTrack(updated);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "タイムスタンプコメントの追加に失敗しました。",
+      );
+    }
   };
 
   const handleCreateTrack = async (input: TrackCreateInput) => {
-    const created = await createTrack(input);
-    setTracks((current) => [created, ...current]);
-    setSelectedId(created.id);
-    setView("browse");
-    setTab(input.visibility === "draft" ? "mine" : "all");
+    setErrorMessage("");
+    try {
+      const created = await createTrack(input);
+      setTracks((current) => [created, ...current]);
+      setSelectedId(created.id);
+      setView("browse");
+      setTab(input.visibility === "draft" ? "mine" : "all");
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "曲の投稿に失敗しました。",
+      );
+    }
   };
 
   return (
@@ -356,6 +385,14 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {errorMessage ? (
+        <div className="mx-auto mt-4 max-w-[1440px] px-6 max-sm:px-3">
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            {errorMessage}
+          </div>
+        </div>
+      ) : null}
 
       {view === "add" ? (
         <AddTrackView
