@@ -12,6 +12,7 @@ import {
   localGetGuildSelection,
   localGetMe,
   localListTracks,
+  localRecordTrackView,
   localSelectGuild,
   localSetLike,
 } from "./localStore";
@@ -115,6 +116,16 @@ export async function setTrackLike(
 
   return requestJson<Track>(`/api/tracks/${trackId}/like`, {
     method: liked ? "POST" : "DELETE",
+  });
+}
+
+export async function recordTrackView(trackId: string): Promise<Track> {
+  if (useLocalMock) {
+    return localRecordTrackView(trackId);
+  }
+
+  return requestJson<Track>(`/api/tracks/${trackId}/view`, {
+    method: "POST",
   });
 }
 

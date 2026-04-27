@@ -1,0 +1,29 @@
+import { requireUser } from "../../../_lib/auth";
+import { getSelectedGuildId } from "../../../_lib/guilds";
+import { json, notFound, unauthorized } from "../../../_lib/http";
+import { ensureTrackVisible, getTrackById } from "../../../_lib/tracks";
+import type { Env } from "../../../_lib/types";
+
+export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }) => {
+  const user = await requireUser(request, env).catch(() => null);
+  if (!user) {
+    return unauthorized();
+  }
+
+  const selectedGuildId = await getSelectedGuildId(env, user.id);
+  const trackId = String(params.id);
+  if (
+    !selectedGuildId ||
+    !(await ensureTrackVisible(env, trackId, user.id, selectedGuildId))
+  ) {
+    return notFound("Track not found.");
+  }
+
+  await env.DB.prepare(
+    "UPDATE tracks SET views = views + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+  )
+    .bind(trackId)
+    .run();
+
+  return json(await getTrackById(env, trackId, user.id, selectedGuildId));
+};

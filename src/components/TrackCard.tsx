@@ -1,12 +1,15 @@
-import { Eye, Heart, MoreVertical, Play } from "lucide-react";
+import { ExternalLink, Eye, Heart, Link2, MoreVertical, Play, Trash2 } from "lucide-react";
+import { useState } from "react";
 import clsx from "clsx";
 import type { Track } from "../types";
 
 type TrackCardProps = {
   track: Track;
   active: boolean;
+  canDelete: boolean;
   onSelect: (track: Track) => void;
   onLike: (track: Track) => void;
+  onDelete: (track: Track) => void;
 };
 
 function compactNumber(value: number): string {
@@ -19,9 +22,19 @@ function compactNumber(value: number): string {
 export function TrackCard({
   track,
   active,
+  canDelete,
   onSelect,
   onLike,
+  onDelete,
 }: TrackCardProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const copyLink = async () => {
+    const url = `${window.location.origin}/?track=${encodeURIComponent(track.id)}`;
+    await navigator.clipboard?.writeText(url).catch(() => null);
+    setMenuOpen(false);
+  };
+
   return (
     <article
       className={clsx(
@@ -62,16 +75,26 @@ export function TrackCard({
             </p>
           </div>
         </div>
-        <p className="mt-2 text-xs font-semibold text-slate-500">追加者</p>
-        <div className="mt-1 flex items-center gap-2">
-          <img
-            src={track.addedBy.avatarUrl}
-            alt=""
-            className="h-6 w-6 rounded-full"
-          />
-          <span className="truncate text-sm text-slate-700">
-            {track.addedBy.username}
-          </span>
+        <div className="mt-3 grid grid-cols-[minmax(130px,auto)_1fr] items-start gap-4 max-md:grid-cols-1 max-md:gap-2">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-slate-500">追加者</p>
+            <div className="mt-1 flex items-center gap-2">
+              <img
+                src={track.addedBy.avatarUrl}
+                alt=""
+                className="h-6 w-6 rounded-full"
+              />
+              <span className="truncate text-sm text-slate-700">
+                {track.addedBy.username}
+              </span>
+            </div>
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-slate-500">おすすめ理由</p>
+            <p className="mt-1 line-clamp-2 text-sm leading-5 text-slate-700">
+              {track.reason}
+            </p>
+          </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           {track.genre ? (
@@ -111,13 +134,63 @@ export function TrackCard({
           <Eye className="h-5 w-5" />
           {compactNumber(track.views)}
         </div>
-        <button
-          type="button"
-          className="focus-ring rounded-md p-1 text-slate-500 hover:bg-slate-100"
-          aria-label="その他"
-        >
-          <MoreVertical className="h-5 w-5" />
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((current) => !current)}
+            className="focus-ring rounded-md p-1 text-slate-500 hover:bg-slate-100"
+            aria-label="その他"
+            aria-expanded={menuOpen}
+          >
+            <MoreVertical className="h-5 w-5" />
+          </button>
+          {menuOpen ? (
+            <div className="absolute right-0 top-8 z-20 w-44 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-left shadow-xl">
+              <button
+                type="button"
+                onClick={() => {
+                  onSelect(track);
+                  setMenuOpen(false);
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                <Play className="h-4 w-4" />
+                再生
+              </button>
+              <a
+                href={track.youtubeUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setMenuOpen(false)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                <ExternalLink className="h-4 w-4" />
+                YouTubeで開く
+              </a>
+              <button
+                type="button"
+                onClick={() => void copyLink()}
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                <Link2 className="h-4 w-4" />
+                リンクをコピー
+              </button>
+              {canDelete ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onDelete(track);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  削除
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </div>
     </article>
   );

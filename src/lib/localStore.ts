@@ -131,6 +131,22 @@ export async function localSetLike(
   return nextTrack;
 }
 
+export async function localRecordTrackView(trackId: string): Promise<Track> {
+  const tracks = readTracks();
+  const index = tracks.findIndex((track) => track.id === trackId);
+  if (index < 0) {
+    throw new Error("曲が見つかりません。");
+  }
+
+  const nextTrack = {
+    ...tracks[index],
+    views: tracks[index].views + 1,
+  };
+  tracks[index] = nextTrack;
+  writeTracks(tracks);
+  return nextTrack;
+}
+
 export async function localAddTimestamp(
   trackId: string,
   timestamp: { time: string; body: string },

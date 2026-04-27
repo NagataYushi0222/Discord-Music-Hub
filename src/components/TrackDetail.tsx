@@ -43,8 +43,23 @@ export function TrackDetail({
   const [playerError, setPlayerError] = useState("");
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<YouTubePlayer | null>(null);
+  const onPlayerReadyRef = useRef(onPlayerReady);
+  const onPlayerStateChangeRef = useRef(onPlayerStateChange);
+  const playerVolumeRef = useRef(playerVolume);
   const pendingStartRef = useRef<number | null>(null);
   const pendingPlayRef = useRef(false);
+
+  useEffect(() => {
+    onPlayerReadyRef.current = onPlayerReady;
+  }, [onPlayerReady]);
+
+  useEffect(() => {
+    onPlayerStateChangeRef.current = onPlayerStateChange;
+  }, [onPlayerStateChange]);
+
+  useEffect(() => {
+    playerVolumeRef.current = playerVolume;
+  }, [playerVolume]);
 
   useEffect(() => {
     const container = playerContainerRef.current;
@@ -57,7 +72,7 @@ export function TrackDetail({
     mount.className = "h-full w-full";
     container.replaceChildren(mount);
     setPlayerError("");
-    onPlayerReady(null);
+    onPlayerReadyRef.current(null);
 
     void loadYouTubeApi().then((YT) => {
       if (cancelled) {
@@ -82,8 +97,8 @@ export function TrackDetail({
             }
 
             playerRef.current = event.target;
-            event.target.setVolume(playerVolume);
-            onPlayerReady(event.target);
+            event.target.setVolume(playerVolumeRef.current);
+            onPlayerReadyRef.current(event.target);
 
             if (pendingStartRef.current !== null) {
               event.target.seekTo(pendingStartRef.current, true);
@@ -97,7 +112,7 @@ export function TrackDetail({
           },
           onStateChange: (event) => {
             if (typeof event.data === "number") {
-              onPlayerStateChange(event.data);
+              onPlayerStateChangeRef.current(event.data);
             }
           },
           onError: (event) => {
@@ -108,7 +123,7 @@ export function TrackDetail({
                   ? "この動画は埋め込み再生が許可されていません。年齢制限がある場合もYouTube上での視聴が必要です。"
                   : "この動画は埋め込み再生できません。";
             setPlayerError(message);
-            onPlayerReady(null);
+            onPlayerReadyRef.current(null);
           },
         },
       });
@@ -118,7 +133,7 @@ export function TrackDetail({
 
     return () => {
       cancelled = true;
-      onPlayerReady(null);
+      onPlayerReadyRef.current(null);
       try {
         playerRef.current?.destroy();
       } catch {
@@ -129,12 +144,7 @@ export function TrackDetail({
       pendingStartRef.current = null;
       container.replaceChildren();
     };
-  }, [
-    onPlayerReady,
-    onPlayerStateChange,
-    track.id,
-    track.videoId,
-  ]);
+  }, [track.id, track.videoId]);
 
   useEffect(() => {
     playerRef.current?.setVolume(playerVolume);
@@ -195,16 +205,26 @@ export function TrackDetail({
             {track.title}
           </h2>
           <p className="mt-2 truncate text-sm text-slate-700">{track.artist}</p>
-          <p className="mt-4 text-xs font-semibold text-slate-500">追加者</p>
-          <div className="mt-2 flex min-w-0 items-center gap-2">
-            <img
-              src={track.addedBy.avatarUrl}
-              alt=""
-              className="h-7 w-7 shrink-0 rounded-full"
-            />
-            <span className="truncate text-sm font-semibold text-slate-700">
-              {track.addedBy.username}
-            </span>
+          <div className="mt-4 grid grid-cols-[minmax(104px,auto)_1fr] gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-slate-500">追加者</p>
+              <div className="mt-2 flex min-w-0 items-center gap-2">
+                <img
+                  src={track.addedBy.avatarUrl}
+                  alt=""
+                  className="h-7 w-7 shrink-0 rounded-full"
+                />
+                <span className="truncate text-sm font-semibold text-slate-700">
+                  {track.addedBy.username}
+                </span>
+              </div>
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-slate-500">おすすめ理由</p>
+              <p className="mt-2 line-clamp-2 text-sm leading-5 text-slate-700">
+                {track.reason}
+              </p>
+            </div>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {track.genre ? (

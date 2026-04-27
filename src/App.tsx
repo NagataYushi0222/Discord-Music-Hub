@@ -21,6 +21,7 @@ import {
   getGuildSelection,
   getMe,
   listTracks,
+  recordTrackView,
   selectGuild,
   setTrackLike,
 } from "./lib/api";
@@ -62,6 +63,7 @@ export default function App() {
   });
   const volumeRef = useRef(62);
   const autoPlayNextTrackRef = useRef(false);
+  const countedViewTrackIdRef = useRef<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -230,6 +232,7 @@ export default function App() {
   );
 
   useEffect(() => {
+    countedViewTrackIdRef.current = null;
     setPlayer(null);
     setPlayback((current) => ({
       ...current,
@@ -295,11 +298,33 @@ export default function App() {
           state === 1 ? true : state === 0 || state === 2 ? false : current.isPlaying,
       }));
 
-      if (state === 0 && hasNextTrack) {
-        selectTrackByOffset(1, true);
+      if (
+        state === 1 &&
+        selectedTrack &&
+        countedViewTrackIdRef.current !== selectedTrack.id
+      ) {
+        countedViewTrackIdRef.current = selectedTrack.id;
+        void recordTrackView(selectedTrack.id)
+          .then((updated) => {
+            setTracks((current) =>
+              current.map((track) => (track.id === updated.id ? updated : track)),
+            );
+          })
+          .catch(() => {
+            if (countedViewTrackIdRef.current === selectedTrack.id) {
+              countedViewTrackIdRef.current = null;
+            }
+          });
+      }
+
+      if (state === 0) {
+        countedViewTrackIdRef.current = null;
+        if (hasNextTrack) {
+          selectTrackByOffset(1, true);
+        }
       }
     },
-    [hasNextTrack, selectTrackByOffset],
+    [hasNextTrack, selectTrackByOffset, selectedTrack],
   );
 
   const handleTogglePlayback = useCallback(() => {
@@ -702,8 +727,10 @@ export default function App() {
                     key={track.id}
                     track={track}
                     active={selectedTrack?.id === track.id}
+                    canDelete={track.addedBy.id === me?.id}
                     onSelect={handleSelectTrack}
                     onLike={handleLike}
+                    onDelete={handleDeleteTrack}
                   />
                 ))
               )}
