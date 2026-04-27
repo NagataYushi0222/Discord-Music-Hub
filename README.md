@@ -31,6 +31,7 @@ npm run pages:dev
 ## Production Safety
 
 - `wrangler.jsonc` の `DEV_AUTH` は本番向けに `false` にしています。
+- `DEV_AUTH` は `wrangler.jsonc` の `vars` で管理します。Cloudflare Pages Secretにも同名で追加するとbinding名が衝突するため、重複登録しないでください。
 - `DISCORD_CLIENT_SECRET` などの秘密情報は `wrangler.jsonc` やGit管理ファイルに書かないでください。
 - Cloudflare Pagesの環境変数、またはWrangler secretで設定してください。
 - D1 binding名は `DB` にしてください。
@@ -77,12 +78,12 @@ Production:
 https://discord-music-hub.pages.dev/api/auth/discord/callback
 ```
 
-Cloudflare Pagesの環境変数に以下を設定します。
+本番の設定値は以下です。
 
 | Name | Value | Secret | Notes |
 | --- | --- | --- | --- |
-| `DEV_AUTH` | `false` | No | 本番では必ず `false` |
-| `DISCORD_CLIENT_ID` | Discord Developer PortalのClient ID | No | OAuth開始URLで使用 |
+| `DEV_AUTH` | `false` | No | `wrangler.jsonc` の `vars` で管理。Pages Secretに重複登録しない |
+| `DISCORD_CLIENT_ID` | Discord Developer PortalのClient ID | No | OAuth開始URLで使用。Pages側に設定 |
 | `DISCORD_CLIENT_SECRET` | Discord Developer PortalのClient Secret | Yes | Gitに書かずCloudflare Pages側で設定 |
 | `DISCORD_REDIRECT_URI` | `https://discord-music-hub.pages.dev/api/auth/discord/callback` | No | Discord Developer PortalのRedirect URIと完全一致させる |
 | `APP_URL` | `https://discord-music-hub.pages.dev` | No | OAuth成功後の戻り先 |

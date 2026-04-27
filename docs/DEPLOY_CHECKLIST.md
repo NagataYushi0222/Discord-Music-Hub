@@ -2,9 +2,10 @@
 
 ## Required Production Settings
 
-Cloudflare Pages environment variables:
+Production bindings and environment values:
 
-- [ ] `DEV_AUTH=false`
+- [ ] `DEV_AUTH=false` is provided by `wrangler.jsonc` `vars`
+- [ ] `DEV_AUTH` is not duplicated as a Cloudflare Pages Secret
 - [ ] `DISCORD_CLIENT_ID` is set
 - [ ] `DISCORD_CLIENT_SECRET` is set as a secret and is not committed
 - [ ] `DISCORD_REDIRECT_URI=https://discord-music-hub.pages.dev/api/auth/discord/callback`
