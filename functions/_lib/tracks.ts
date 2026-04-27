@@ -112,7 +112,15 @@ async function hydrateTrack(
   };
 }
 
-export async function listTracks(env: Env, viewerId?: string): Promise<Track[]> {
+export async function listTracks(
+  env: Env,
+  viewerId?: string,
+  guildId?: string | null,
+): Promise<Track[]> {
+  const guildFilter = guildId
+    ? "AND tracks.guild_id = ?"
+    : "";
+  const params = guildId ? [viewerId ?? "", guildId] : [viewerId ?? ""];
   const rows = await env.DB.prepare(
     `SELECT tracks.*,
             users.id AS user_id,
@@ -121,11 +129,12 @@ export async function listTracks(env: Env, viewerId?: string): Promise<Track[]> 
             users.roles
        FROM tracks
        JOIN users ON users.id = tracks.added_by_user_id
-      WHERE tracks.visibility = 'public'
-         OR tracks.added_by_user_id = ?
+      WHERE (tracks.visibility = 'public'
+         OR tracks.added_by_user_id = ?)
+      ${guildFilter}
       ORDER BY tracks.created_at DESC`,
   )
-    .bind(viewerId ?? "")
+    .bind(...params)
     .all<TrackRow>();
 
   return Promise.all(

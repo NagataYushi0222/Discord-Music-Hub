@@ -1,5 +1,6 @@
 import type {
   AppUser,
+  GuildSelection,
   Track,
   TrackCreateInput,
   YoutubeMetadata,
@@ -7,8 +8,10 @@ import type {
 import {
   localAddTimestamp,
   localCreateTrack,
+  localGetGuildSelection,
   localGetMe,
   localListTracks,
+  localSelectGuild,
   localSetLike,
 } from "./localStore";
 import { fetchYoutubeMetadata } from "./youtube";
@@ -51,6 +54,25 @@ export async function getMe(): Promise<AppUser | null> {
   } catch {
     return null;
   }
+}
+
+export async function getGuildSelection(): Promise<GuildSelection> {
+  if (useLocalMock) {
+    return localGetGuildSelection();
+  }
+
+  return requestJson<GuildSelection>("/api/guilds");
+}
+
+export async function selectGuild(guildId: string): Promise<GuildSelection> {
+  if (useLocalMock) {
+    return localSelectGuild(guildId);
+  }
+
+  return requestJson<GuildSelection>("/api/guilds/select", {
+    method: "POST",
+    body: JSON.stringify({ guildId }),
+  });
 }
 
 export async function listTracks(): Promise<Track[]> {

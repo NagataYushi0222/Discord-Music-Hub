@@ -18,6 +18,9 @@ Discord Developer Portal Redirect URI:
 https://discord-music-hub.pages.dev/api/auth/discord/callback
 ```
 
+- [ ] Discord OAuth consent includes `identify guilds`
+- [ ] サーバー一覧が表示されない既存ユーザーは「サーバー取得」から再ログインする
+
 D1 binding:
 
 - [ ] Binding name is exactly `DB`

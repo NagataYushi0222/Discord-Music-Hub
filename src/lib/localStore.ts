@@ -1,12 +1,14 @@
 import type {
   AppUser,
+  GuildSelection,
   Track,
   TrackCreateInput,
   TimestampComment,
 } from "../types";
-import { devUser, seedTracks } from "./mockData";
+import { devUser, seedGuilds, seedTracks } from "./mockData";
 
 const TRACKS_KEY = "discord_music_hub_tracks_v1";
+const SELECTED_GUILD_KEY = "discord_music_hub_selected_guild_v1";
 
 function cloneTracks(tracks: Track[]): Track[] {
   return JSON.parse(JSON.stringify(tracks)) as Track[];
@@ -35,6 +37,20 @@ function writeTracks(tracks: Track[]) {
 
 export async function localGetMe(): Promise<AppUser> {
   return devUser;
+}
+
+export async function localGetGuildSelection(): Promise<GuildSelection> {
+  const selectedGuildId =
+    window.localStorage.getItem(SELECTED_GUILD_KEY) ?? seedGuilds[0]?.id ?? null;
+  return { guilds: seedGuilds, selectedGuildId };
+}
+
+export async function localSelectGuild(guildId: string): Promise<GuildSelection> {
+  if (!seedGuilds.some((guild) => guild.id === guildId)) {
+    throw new Error("選択できないサーバーです。");
+  }
+  window.localStorage.setItem(SELECTED_GUILD_KEY, guildId);
+  return { guilds: seedGuilds, selectedGuildId: guildId };
 }
 
 export async function localListTracks(): Promise<Track[]> {

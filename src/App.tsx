@@ -14,9 +14,17 @@ import { AddTrackView } from "./components/AddTrackView";
 import { PlayerBar } from "./components/PlayerBar";
 import { TrackCard } from "./components/TrackCard";
 import { TrackDetail } from "./components/TrackDetail";
-import { addTimestamp, createTrack, getMe, listTracks, setTrackLike } from "./lib/api";
+import {
+  addTimestamp,
+  createTrack,
+  getGuildSelection,
+  getMe,
+  listTracks,
+  selectGuild,
+  setTrackLike,
+} from "./lib/api";
 import type { YouTubePlayer } from "./lib/youtubePlayer";
-import type { AppUser, Track, TrackCreateInput } from "./types";
+import type { AppUser, DiscordGuild, Track, TrackCreateInput } from "./types";
 
 type ViewMode = "browse" | "add";
 type TabMode = "all" | "mine";
@@ -38,6 +46,9 @@ export default function App() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [me, setMe] = useState<AppUser | null>(null);
+  const [guilds, setGuilds] = useState<DiscordGuild[]>([]);
+  const [selectedGuildId, setSelectedGuildId] = useState("");
+  const [guildLoading, setGuildLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [player, setPlayer] = useState<YouTubePlayer | null>(null);
@@ -54,7 +65,17 @@ export default function App() {
     setLoading(true);
     setErrorMessage("");
     try {
-      const [nextUser, nextTracks] = await Promise.all([getMe(), listTracks()]);
+      const nextUser = await getMe();
+      if (nextUser) {
+        const guildSelection = await getGuildSelection();
+        setGuilds(guildSelection.guilds);
+        setSelectedGuildId(guildSelection.selectedGuildId ?? "");
+      } else {
+        setGuilds([]);
+        setSelectedGuildId("");
+      }
+
+      const nextTracks = await listTracks();
       setMe(nextUser);
       setTracks(nextTracks);
       setSelectedId((current) => current ?? nextTracks[0]?.id ?? null);
@@ -74,6 +95,10 @@ export default function App() {
   const allTags = useMemo(() => {
     return Array.from(new Set(tracks.flatMap((track) => track.tags))).slice(0, 12);
   }, [tracks]);
+
+  const selectedGuild = useMemo(() => {
+    return guilds.find((guild) => guild.id === selectedGuildId) ?? null;
+  }, [guilds, selectedGuildId]);
 
   const visibleTracks = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -257,6 +282,29 @@ export default function App() {
     }
   };
 
+  const handleSelectGuild = async (guildId: string) => {
+    if (!guildId || guildId === selectedGuildId) {
+      return;
+    }
+
+    setGuildLoading(true);
+    setErrorMessage("");
+    try {
+      const guildSelection = await selectGuild(guildId);
+      setGuilds(guildSelection.guilds);
+      setSelectedGuildId(guildSelection.selectedGuildId ?? guildId);
+      const nextTracks = await listTracks();
+      setTracks(nextTracks);
+      setSelectedId(nextTracks[0]?.id ?? null);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "サーバーの切り替えに失敗しました。",
+      );
+    } finally {
+      setGuildLoading(false);
+    }
+  };
+
   const handleCreateTrack = async (input: TrackCreateInput) => {
     setErrorMessage("");
     try {
@@ -294,15 +342,51 @@ export default function App() {
             </span>
           </button>
 
-          <button
-            type="button"
-            className="focus-ring flex items-center justify-center gap-3 rounded-lg border border-slate-200 px-4 py-3 font-semibold text-slate-700 max-xl:hidden"
-          >
-            <span className="grid h-6 w-6 place-items-center rounded-full bg-indigo-100 text-indigo-600">
-              <Music2 className="h-4 w-4" />
-            </span>
-            Server 2
-          </button>
+          <div className="max-xl:hidden">
+            {me && guilds.length ? (
+              <label className="focus-within:ring-2 focus-within:ring-indigo-400/40 flex h-12 items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 font-semibold text-slate-700">
+                {selectedGuild?.iconUrl ? (
+                  <img
+                    src={selectedGuild.iconUrl}
+                    alt=""
+                    className="h-6 w-6 rounded-full"
+                  />
+                ) : (
+                  <span className="grid h-6 w-6 place-items-center rounded-full bg-indigo-100 text-indigo-600">
+                    <Music2 className="h-4 w-4" />
+                  </span>
+                )}
+                <select
+                  value={selectedGuildId}
+                  disabled={guildLoading}
+                  onChange={(event) => void handleSelectGuild(event.target.value)}
+                  className="min-w-0 max-w-32 appearance-none bg-transparent outline-none"
+                  aria-label="Discordサーバーを選択"
+                >
+                  {guilds.map((guild) => (
+                    <option key={guild.id} value={guild.id}>
+                      {guild.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : me ? (
+              <a
+                href="/api/auth/discord/start"
+                className="focus-ring flex h-12 items-center justify-center gap-3 rounded-lg border border-slate-200 px-4 font-semibold text-slate-700"
+              >
+                <RefreshCcw className="h-4 w-4" />
+                サーバー取得
+              </a>
+            ) : (
+              <div className="flex h-12 items-center justify-center gap-3 rounded-lg border border-slate-200 px-4 font-semibold text-slate-400">
+                <span className="grid h-6 w-6 place-items-center rounded-full bg-slate-100">
+                  <Music2 className="h-4 w-4" />
+                </span>
+                Server
+              </div>
+            )}
+          </div>
 
           <div className="grid gap-2 max-xl:col-span-2 max-sm:col-span-1">
             <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-2 shadow-sm">

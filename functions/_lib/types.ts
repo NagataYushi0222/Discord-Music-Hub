@@ -9,6 +9,14 @@ export type Env = {
   APP_URL?: string;
 };
 
+export type DiscordGuild = {
+  id: string;
+  name: string;
+  iconUrl: string | null;
+  owner: boolean;
+  permissions: string;
+};
+
 export type AppUser = {
   id: string;
   username: string;
@@ -47,6 +55,7 @@ export type UserRow = {
   username: string;
   avatar_url: string;
   roles: string;
+  selected_guild_id?: string | null;
 };
 
 export type TrackRow = {
@@ -56,6 +65,7 @@ export type TrackRow = {
   title: string;
   artist: string;
   thumbnail_url: string;
+  guild_id?: string | null;
   added_by_user_id: string;
   reason: string;
   visibility: "public" | "draft";

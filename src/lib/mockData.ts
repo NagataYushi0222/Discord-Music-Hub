@@ -1,4 +1,4 @@
-import type { AppUser, Track } from "../types";
+import type { AppUser, DiscordGuild, Track } from "../types";
 
 export const devUser: AppUser = {
   id: "dev_user",
@@ -6,6 +6,23 @@ export const devUser: AppUser = {
   avatarUrl: "https://cdn.discordapp.com/embed/avatars/0.png",
   roles: ["member", "playlist_editor"],
 };
+
+export const seedGuilds: DiscordGuild[] = [
+  {
+    id: "guild_design_lab",
+    name: "Design Lab",
+    iconUrl: null,
+    owner: true,
+    permissions: "8",
+  },
+  {
+    id: "guild_server_2",
+    name: "Server 2",
+    iconUrl: null,
+    owner: false,
+    permissions: "0",
+  },
+];
 
 const users: AppUser[] = [
   devUser,

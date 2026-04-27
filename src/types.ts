@@ -7,6 +7,19 @@ export type AppUser = {
   roles: string[];
 };
 
+export type DiscordGuild = {
+  id: string;
+  name: string;
+  iconUrl: string | null;
+  owner: boolean;
+  permissions: string;
+};
+
+export type GuildSelection = {
+  guilds: DiscordGuild[];
+  selectedGuildId: string | null;
+};
+
 export type TimestampComment = {
   id: string;
   time: string;

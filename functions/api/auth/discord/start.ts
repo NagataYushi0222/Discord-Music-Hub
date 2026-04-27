@@ -19,7 +19,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   discordUrl.searchParams.set("client_id", env.DISCORD_CLIENT_ID);
   discordUrl.searchParams.set("redirect_uri", redirectUri);
   discordUrl.searchParams.set("response_type", "code");
-  discordUrl.searchParams.set("scope", "identify");
+  discordUrl.searchParams.set("scope", "identify guilds");
   discordUrl.searchParams.set("state", state);
 
   return new Response(null, {

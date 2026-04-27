@@ -6,8 +6,9 @@ import {
   getCookie,
   setCookie,
 } from "../../../_lib/auth";
+import { discordGuildIconUrl, replaceUserGuilds } from "../../../_lib/guilds";
 import { badRequest } from "../../../_lib/http";
-import type { AppUser, Env } from "../../../_lib/types";
+import type { AppUser, DiscordGuild, Env } from "../../../_lib/types";
 
 type DiscordTokenResponse = {
   access_token: string;
@@ -19,6 +20,14 @@ type DiscordUserResponse = {
   username: string;
   global_name?: string | null;
   avatar?: string | null;
+};
+
+type DiscordGuildResponse = {
+  id: string;
+  name: string;
+  icon?: string | null;
+  owner?: boolean;
+  permissions?: string;
 };
 
 function avatarUrl(user: DiscordUserResponse) {
@@ -80,6 +89,26 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   };
 
   await ensureUser(env, user);
+
+  const guildsResponse = await fetch("https://discord.com/api/users/@me/guilds", {
+    headers: { Authorization: `${token.token_type} ${token.access_token}` },
+  });
+
+  if (!guildsResponse.ok) {
+    return badRequest("Discord guild fetch failed.");
+  }
+
+  const discordGuilds = (await guildsResponse.json()) as DiscordGuildResponse[];
+  const guilds: DiscordGuild[] = discordGuilds.map((guild) => ({
+    id: guild.id,
+    name: guild.name,
+    iconUrl: discordGuildIconUrl(guild.id, guild.icon ?? null),
+    owner: Boolean(guild.owner),
+    permissions: guild.permissions ?? "0",
+  }));
+
+  await replaceUserGuilds(env, user.id, guilds);
+
   const sessionId = await createSession(env, user.id);
   const appUrl = env.APP_URL || "/";
   const headers = new Headers({ Location: appUrl });

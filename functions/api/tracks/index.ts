@@ -1,4 +1,5 @@
 import { ensureUser, requireUser } from "../../_lib/auth";
+import { getSelectedGuildId } from "../../_lib/guilds";
 import { badRequest, json, readJson, unauthorized } from "../../_lib/http";
 import { getTrackById, listTracks } from "../../_lib/tracks";
 import type { Env } from "../../_lib/types";
@@ -24,7 +25,10 @@ type CreateTrackBody = {
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const user = await requireUser(request, env).catch(() => null);
-  const tracks = await listTracks(env, user?.id);
+  const selectedGuildId = user
+    ? await getSelectedGuildId(env, user.id)
+    : null;
+  const tracks = await listTracks(env, user?.id, selectedGuildId);
   return json(tracks);
 };
 
@@ -79,12 +83,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       : await fetchYoutubeMetadata(body.youtubeUrl);
 
   const id = `track_${crypto.randomUUID()}`;
+  const selectedGuildId = await getSelectedGuildId(env, user.id);
 
   await ensureUser(env, user);
   await env.DB.prepare(
     `INSERT INTO tracks
-      (id, youtube_url, video_id, title, artist, thumbnail_url, added_by_user_id, reason, visibility)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, youtube_url, video_id, title, artist, thumbnail_url, guild_id, added_by_user_id, reason, visibility)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
     .bind(
       id,
@@ -93,6 +98,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       metadata.title,
       metadata.authorName,
       metadata.thumbnailUrl,
+      selectedGuildId,
       user.id,
       reason.value,
       visibility.value,
