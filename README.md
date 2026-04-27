@@ -74,7 +74,7 @@ http://localhost:8788/api/auth/discord/callback
 Production:
 
 ```text
-https://YOUR_PAGES_DOMAIN/api/auth/discord/callback
+https://discord-music-hub.pages.dev/api/auth/discord/callback
 ```
 
 Cloudflare Pagesの環境変数に以下を設定します。
@@ -84,13 +84,13 @@ Cloudflare Pagesの環境変数に以下を設定します。
 | `DEV_AUTH` | `false` | No | 本番では必ず `false` |
 | `DISCORD_CLIENT_ID` | Discord Developer PortalのClient ID | No | OAuth開始URLで使用 |
 | `DISCORD_CLIENT_SECRET` | Discord Developer PortalのClient Secret | Yes | Gitに書かずCloudflare Pages側で設定 |
-| `DISCORD_REDIRECT_URI` | `https://YOUR_PAGES_DOMAIN/api/auth/discord/callback` | No | Discord Developer PortalのRedirect URIと完全一致させる |
-| `APP_URL` | `https://YOUR_PAGES_DOMAIN` | No | OAuth成功後の戻り先 |
+| `DISCORD_REDIRECT_URI` | `https://discord-music-hub.pages.dev/api/auth/discord/callback` | No | Discord Developer PortalのRedirect URIと完全一致させる |
+| `APP_URL` | `https://discord-music-hub.pages.dev` | No | OAuth成功後の戻り先 |
 
 Production Redirect URI:
 
 ```text
-https://YOUR_PAGES_DOMAIN/api/auth/discord/callback
+https://discord-music-hub.pages.dev/api/auth/discord/callback
 ```
 
 `VITE_USE_LOCAL_MOCK` はローカルVite開発用です。本番Cloudflare Pagesには設定しないでください。

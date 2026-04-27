@@ -7,14 +7,14 @@ Cloudflare Pages environment variables:
 - [ ] `DEV_AUTH=false`
 - [ ] `DISCORD_CLIENT_ID` is set
 - [ ] `DISCORD_CLIENT_SECRET` is set as a secret and is not committed
-- [ ] `DISCORD_REDIRECT_URI=https://YOUR_PAGES_DOMAIN/api/auth/discord/callback`
-- [ ] `APP_URL=https://YOUR_PAGES_DOMAIN`
+- [ ] `DISCORD_REDIRECT_URI=https://discord-music-hub.pages.dev/api/auth/discord/callback`
+- [ ] `APP_URL=https://discord-music-hub.pages.dev`
 - [ ] `VITE_USE_LOCAL_MOCK` is not set in production
 
 Discord Developer Portal Redirect URI:
 
 ```text
-https://YOUR_PAGES_DOMAIN/api/auth/discord/callback
+https://discord-music-hub.pages.dev/api/auth/discord/callback
 ```
 
 D1 binding:
