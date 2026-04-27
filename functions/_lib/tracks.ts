@@ -1,4 +1,12 @@
-import type { AppUser, Env, TimestampComment, Track, TrackRow, UserRow } from "./types";
+import type {
+  AppUser,
+  Env,
+  ReasonComment,
+  TimestampComment,
+  Track,
+  TrackRow,
+  UserRow,
+} from "./types";
 
 function mapUser(row: UserRow | TrackRow): AppUser {
   return {
@@ -62,6 +70,82 @@ async function getTimestamps(
   }));
 }
 
+async function getReasonComments(
+  env: Env,
+  trackId: string,
+  viewerId?: string,
+): Promise<{ comments: ReasonComment[]; count: number }> {
+  const rows = await env.DB.prepare(
+    `SELECT reason_comments.id,
+            reason_comments.parent_comment_id,
+            reason_comments.body,
+            reason_comments.created_at,
+            users.id AS user_id,
+            users.username,
+            users.avatar_url,
+            users.roles,
+            (SELECT COUNT(*)
+               FROM reason_comment_likes
+              WHERE reason_comment_likes.comment_id = reason_comments.id) AS likes,
+            (SELECT COUNT(*)
+               FROM reason_comment_likes
+              WHERE reason_comment_likes.comment_id = reason_comments.id
+                AND reason_comment_likes.user_id = ?) AS liked_by_me
+       FROM reason_comments
+       JOIN users ON users.id = reason_comments.user_id
+      WHERE reason_comments.track_id = ?
+      ORDER BY reason_comments.created_at ASC`,
+  )
+    .bind(viewerId ?? "", trackId)
+    .all<{
+      id: string;
+      parent_comment_id: string | null;
+      body: string;
+      created_at: string;
+      user_id: string;
+      username: string;
+      avatar_url: string;
+      roles: string;
+      likes: number;
+      liked_by_me: number;
+    }>();
+
+  const byId = new Map<string, ReasonComment>();
+  const roots: ReasonComment[] = [];
+
+  for (const row of rows.results) {
+    byId.set(row.id, {
+      id: row.id,
+      body: row.body,
+      user: {
+        id: row.user_id,
+        username: row.username,
+        avatarUrl: row.avatar_url,
+        roles: row.roles.split(",").filter(Boolean),
+      },
+      likes: row.likes,
+      likedByMe: Boolean(row.liked_by_me),
+      replies: [],
+      createdAt: row.created_at,
+    });
+  }
+
+  for (const row of rows.results) {
+    const comment = byId.get(row.id);
+    if (!comment) {
+      continue;
+    }
+
+    if (row.parent_comment_id && byId.has(row.parent_comment_id)) {
+      byId.get(row.parent_comment_id)?.replies.push(comment);
+    } else {
+      roots.push(comment);
+    }
+  }
+
+  return { comments: roots, count: rows.results.length };
+}
+
 async function getLikeState(env: Env, trackId: string, viewerId?: string) {
   const count = await env.DB.prepare(
     "SELECT COUNT(*) AS count FROM likes WHERE track_id = ?",
@@ -87,9 +171,10 @@ async function hydrateTrack(
   row: TrackRow,
   viewerId?: string,
 ): Promise<Track> {
-  const [tags, timestamps, likeState] = await Promise.all([
+  const [tags, timestamps, reasonCommentState, likeState] = await Promise.all([
     getTags(env, row.id),
     getTimestamps(env, row.id),
+    getReasonComments(env, row.id, viewerId),
     getLikeState(env, row.id, viewerId),
   ]);
 
@@ -104,6 +189,8 @@ async function hydrateTrack(
     addedBy: mapUser(row),
     tags,
     reason: row.reason,
+    reasonComments: reasonCommentState.comments,
+    reasonCommentCount: reasonCommentState.count,
     timestamps,
     likes: likeState.likes,
     likedByMe: likeState.likedByMe,

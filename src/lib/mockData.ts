@@ -59,6 +59,28 @@ export const seedTracks: Track[] = [
     tags: ["青春", "夜", "通学"],
     reason:
       "イントロから一気に世界観に引き込まれます。切ない歌詞と疾走感のあるメロディが、夜の帰り道やふと考え事をしてしまう瞬間にぴったり。",
+    reasonComments: [
+      {
+        id: "rc_yoru_1",
+        body: "わかる、夜の帰り道に流すとめちゃくちゃ刺さる。",
+        user: users[1],
+        likes: 3,
+        likedByMe: false,
+        replies: [
+          {
+            id: "rc_yoru_2",
+            body: "イントロで空気が変わる感じありますよね。",
+            user: users[0],
+            likes: 1,
+            likedByMe: true,
+            replies: [],
+            createdAt: "2026-04-20T08:20:00.000Z",
+          },
+        ],
+        createdAt: "2026-04-20T08:15:00.000Z",
+      },
+    ],
+    reasonCommentCount: 2,
     timestamps: [
       {
         id: "ts_yoru_1",
@@ -100,6 +122,8 @@ export const seedTracks: Track[] = [
     tags: ["ドライブ", "海", "エモい"],
     reason:
       "海沿いを走るときに流したくなる曲。落ち着いた温度感のまま、気持ちをそっと前へ押してくれます。",
+    reasonComments: [],
+    reasonCommentCount: 0,
     timestamps: [
       {
         id: "ts_sui_1",
@@ -127,6 +151,8 @@ export const seedTracks: Track[] = [
     tags: ["作業用", "落ち着く", "夜"],
     reason:
       "作業のテンポを崩さずに気分を上げてくれる一曲。声の抜け感が心地よくて、夜の集中時間に合います。",
+    reasonComments: [],
+    reasonCommentCount: 0,
     timestamps: [
       {
         id: "ts_kai_1",
@@ -154,6 +180,8 @@ export const seedTracks: Track[] = [
     tags: ["希望", "朝", "元気が出る"],
     reason:
       "一日の始まりに聴くと背筋が伸びます。明るいのに軽すぎず、少し勇気がほしいときにちょうどいい。",
+    reasonComments: [],
+    reasonCommentCount: 0,
     timestamps: [],
     likes: 64,
     likedByMe: false,

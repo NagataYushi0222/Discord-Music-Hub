@@ -15,6 +15,7 @@ import { PlayerBar } from "./components/PlayerBar";
 import { TrackCard } from "./components/TrackCard";
 import { TrackDetail } from "./components/TrackDetail";
 import {
+  addReasonComment,
   addTimestamp,
   createTrack,
   deleteTrack,
@@ -23,10 +24,17 @@ import {
   listTracks,
   recordTrackView,
   selectGuild,
+  setReasonCommentLike,
   setTrackLike,
 } from "./lib/api";
 import type { YouTubePlayer } from "./lib/youtubePlayer";
-import type { AppUser, DiscordGuild, Track, TrackCreateInput } from "./types";
+import type {
+  AppUser,
+  DiscordGuild,
+  ReasonComment,
+  Track,
+  TrackCreateInput,
+} from "./types";
 
 type ViewMode = "browse" | "add";
 type TabMode = "all" | "mine";
@@ -39,6 +47,8 @@ type PlaybackState = {
   volume: number;
 };
 
+const LAST_VISIT_KEY = "discord_music_hub_last_visit_v1";
+
 export default function App() {
   const [view, setView] = useState<ViewMode>("browse");
   const [tab, setTab] = useState<TabMode>("all");
@@ -46,6 +56,12 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [activeTag, setActiveTag] = useState("");
   const [tracks, setTracks] = useState<Track[]>([]);
+  const [previousVisitAt] = useState(() => {
+    if (typeof window === "undefined") {
+      return "";
+    }
+    return window.localStorage.getItem(LAST_VISIT_KEY) ?? "";
+  });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [me, setMe] = useState<AppUser | null>(null);
   const [guilds, setGuilds] = useState<DiscordGuild[]>([]);
@@ -104,6 +120,10 @@ export default function App() {
 
   useEffect(() => {
     void load();
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(LAST_VISIT_KEY, new Date().toISOString());
   }, []);
 
   const allTags = useMemo(() => {
@@ -385,6 +405,45 @@ export default function App() {
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "いいねに失敗しました。",
+      );
+    }
+  };
+
+  const handleAddReasonComment = async (
+    trackId: string,
+    body: string,
+    parentCommentId?: string | null,
+  ) => {
+    setErrorMessage("");
+    try {
+      const updated = await addReasonComment(trackId, body, parentCommentId);
+      replaceTrack(updated);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "おすすめ理由へのコメント追加に失敗しました。",
+      );
+    }
+  };
+
+  const handleLikeReasonComment = async (
+    track: Track,
+    comment: ReasonComment,
+  ) => {
+    setErrorMessage("");
+    try {
+      const updated = await setReasonCommentLike(
+        track.id,
+        comment.id,
+        !comment.likedByMe,
+      );
+      replaceTrack(updated);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "コメントのいいねに失敗しました。",
       );
     }
   };
@@ -727,6 +786,7 @@ export default function App() {
                     key={track.id}
                     track={track}
                     active={selectedTrack?.id === track.id}
+                    isNew={Boolean(previousVisitAt && track.createdAt > previousVisitAt)}
                     canDelete={track.addedBy.id === me?.id}
                     onSelect={handleSelectTrack}
                     onLike={handleLike}
@@ -741,6 +801,8 @@ export default function App() {
             <TrackDetail
               track={selectedTrack}
               onLike={handleLike}
+              onAddReasonComment={handleAddReasonComment}
+              onLikeReasonComment={handleLikeReasonComment}
               onAddTimestamp={handleAddTimestamp}
               canDelete={selectedTrack.addedBy.id === me?.id}
               onDelete={handleDeleteTrack}

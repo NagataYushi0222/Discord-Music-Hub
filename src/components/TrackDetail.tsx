@@ -3,14 +3,16 @@ import {
   Clock3,
   ExternalLink,
   Heart,
+  MessageCircle,
   Send,
   Share2,
   Trash2,
-  UserRound,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import type { Track } from "../types";
+import { ReasonComments } from "./ReasonComments";
+import type { ReasonComment, Track } from "../types";
+import { formatDateTime } from "../lib/format";
 import { timestampToSeconds } from "../lib/youtube";
 import {
   loadYouTubeApi,
@@ -20,6 +22,12 @@ import {
 type TrackDetailProps = {
   track: Track;
   onLike: (track: Track) => void;
+  onAddReasonComment: (
+    trackId: string,
+    body: string,
+    parentCommentId?: string | null,
+  ) => void;
+  onLikeReasonComment: (track: Track, comment: ReasonComment) => void;
   onAddTimestamp: (trackId: string, time: string, body: string) => void;
   canDelete: boolean;
   onDelete: (track: Track) => void;
@@ -31,6 +39,8 @@ type TrackDetailProps = {
 export function TrackDetail({
   track,
   onLike,
+  onAddReasonComment,
+  onLikeReasonComment,
   onAddTimestamp,
   canDelete,
   onDelete,
@@ -40,6 +50,7 @@ export function TrackDetail({
 }: TrackDetailProps) {
   const [time, setTime] = useState("");
   const [body, setBody] = useState("");
+  const [commentsOpen, setCommentsOpen] = useState(false);
   const [playerError, setPlayerError] = useState("");
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<YouTubePlayer | null>(null);
@@ -205,6 +216,10 @@ export function TrackDetail({
             {track.title}
           </h2>
           <p className="mt-2 truncate text-sm text-slate-700">{track.artist}</p>
+          <p className="mt-2 flex items-center gap-1 text-xs text-slate-500">
+            <Clock3 className="h-3.5 w-3.5" />
+            追加 {formatDateTime(track.createdAt)}
+          </p>
           <div className="mt-4 grid grid-cols-[minmax(104px,auto)_1fr] gap-3">
             <div className="min-w-0">
               <p className="text-xs font-semibold text-slate-500">追加者</p>
@@ -267,10 +282,48 @@ export function TrackDetail({
 
       <div className="mt-5 border-t border-slate-200 pt-5">
         <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
-          <UserRound className="h-5 w-5" />
-          おすすめ理由
+          <MessageCircle className="h-5 w-5" />
+          おすすめ理由（コメント数 {track.reasonCommentCount}）
         </h3>
-        <p className="mt-3 leading-7 text-slate-700">{track.reason}</p>
+        <div className="mt-3 flex items-start gap-3">
+          <img
+            src={track.addedBy.avatarUrl}
+            alt=""
+            className="h-9 w-9 shrink-0 rounded-full"
+          />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="font-semibold text-slate-800">
+                {track.addedBy.username}
+              </span>
+              <span className="text-xs text-slate-500">
+                {formatDateTime(track.createdAt)}
+              </span>
+            </div>
+            <p className="mt-2 whitespace-pre-wrap break-words leading-7 text-slate-700">
+              {track.reason}
+            </p>
+            <button
+              type="button"
+              onClick={() => setCommentsOpen((current) => !current)}
+              className="focus-ring mt-2 inline-flex items-center gap-1 rounded-md px-1 py-1 text-sm font-semibold text-blue-600 hover:bg-blue-50"
+            >
+              <MessageCircle className="h-4 w-4" />
+              comments
+            </button>
+          </div>
+        </div>
+        {commentsOpen ? (
+          <div className="mt-3">
+            <ReasonComments
+              comments={track.reasonComments}
+              onAddComment={(nextBody, parentCommentId) =>
+                onAddReasonComment(track.id, nextBody, parentCommentId)
+              }
+              onLikeComment={(comment) => onLikeReasonComment(track, comment)}
+            />
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-5 border-t border-slate-200 pt-5">
@@ -294,8 +347,13 @@ export function TrackDetail({
                 <span className="border-r border-slate-200 px-3 py-2 font-semibold text-indigo-600">
                   {timestamp.time}
                 </span>
-                <span className="truncate px-3 py-2 text-slate-700">
-                  {timestamp.body}
+                <span className="min-w-0 px-3 py-2">
+                  <span className="block truncate text-slate-700">
+                    {timestamp.body}
+                  </span>
+                  <span className="mt-1 block truncate text-xs text-slate-500">
+                    {timestamp.user.username} / {formatDateTime(timestamp.createdAt)}
+                  </span>
                 </span>
               </button>
             ))

@@ -28,6 +28,16 @@ export type TimestampComment = {
   createdAt: string;
 };
 
+export type ReasonComment = {
+  id: string;
+  body: string;
+  user: AppUser;
+  likes: number;
+  likedByMe: boolean;
+  replies: ReasonComment[];
+  createdAt: string;
+};
+
 export type Track = {
   id: string;
   youtubeUrl: string;
@@ -39,6 +49,8 @@ export type Track = {
   addedBy: AppUser;
   tags: string[];
   reason: string;
+  reasonComments: ReasonComment[];
+  reasonCommentCount: number;
   timestamps: TimestampComment[];
   likes: number;
   likedByMe: boolean;

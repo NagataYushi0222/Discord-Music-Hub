@@ -1,11 +1,22 @@
-import { ExternalLink, Eye, Heart, Link2, MoreVertical, Play, Trash2 } from "lucide-react";
+import {
+  Clock3,
+  ExternalLink,
+  Eye,
+  Heart,
+  Link2,
+  MoreVertical,
+  Play,
+  Trash2,
+} from "lucide-react";
 import { useState } from "react";
 import clsx from "clsx";
 import type { Track } from "../types";
+import { formatDateTime } from "../lib/format";
 
 type TrackCardProps = {
   track: Track;
   active: boolean;
+  isNew: boolean;
   canDelete: boolean;
   onSelect: (track: Track) => void;
   onLike: (track: Track) => void;
@@ -22,6 +33,7 @@ function compactNumber(value: number): string {
 export function TrackCard({
   track,
   active,
+  isNew,
   canDelete,
   onSelect,
   onLike,
@@ -67,11 +79,22 @@ export function TrackCard({
       >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h3 className="truncate text-lg font-bold text-slate-950">
-              {track.title}
-            </h3>
+            <div className="flex min-w-0 items-center gap-2">
+              <h3 className="truncate text-lg font-bold text-slate-950">
+                {track.title}
+              </h3>
+              {isNew ? (
+                <span className="shrink-0 rounded-md bg-red-500 px-2 py-0.5 text-[11px] font-bold uppercase text-white">
+                  new
+                </span>
+              ) : null}
+            </div>
             <p className="mt-1 truncate text-sm text-slate-700">
               {track.artist}
+            </p>
+            <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+              <Clock3 className="h-3.5 w-3.5" />
+              追加 {formatDateTime(track.createdAt)}
             </p>
           </div>
         </div>

@@ -6,6 +6,7 @@ import type {
   YoutubeMetadata,
 } from "../types";
 import {
+  localAddReasonComment,
   localAddTimestamp,
   localCreateTrack,
   localDeleteTrack,
@@ -14,6 +15,7 @@ import {
   localListTracks,
   localRecordTrackView,
   localSelectGuild,
+  localSetReasonCommentLike,
   localSetLike,
 } from "./localStore";
 import { fetchYoutubeMetadata } from "./youtube";
@@ -127,6 +129,38 @@ export async function recordTrackView(trackId: string): Promise<Track> {
   return requestJson<Track>(`/api/tracks/${trackId}/view`, {
     method: "POST",
   });
+}
+
+export async function addReasonComment(
+  trackId: string,
+  body: string,
+  parentCommentId?: string | null,
+): Promise<Track> {
+  if (useLocalMock) {
+    return localAddReasonComment(trackId, body, parentCommentId);
+  }
+
+  return requestJson<Track>(`/api/tracks/${trackId}/reason-comments`, {
+    method: "POST",
+    body: JSON.stringify({ body, parentCommentId }),
+  });
+}
+
+export async function setReasonCommentLike(
+  trackId: string,
+  commentId: string,
+  liked: boolean,
+): Promise<Track> {
+  if (useLocalMock) {
+    return localSetReasonCommentLike(trackId, commentId, liked);
+  }
+
+  return requestJson<Track>(
+    `/api/tracks/${trackId}/reason-comments/${commentId}/like`,
+    {
+      method: liked ? "POST" : "DELETE",
+    },
+  );
 }
 
 export async function addTimestamp(

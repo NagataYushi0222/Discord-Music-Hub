@@ -53,6 +53,15 @@ export const onRequestDelete: PagesFunction<Env> = async ({
   await env.DB.prepare("DELETE FROM timestamp_comments WHERE track_id = ?")
     .bind(id)
     .run();
+  await env.DB.prepare(
+    `DELETE FROM reason_comment_likes
+      WHERE comment_id IN (SELECT id FROM reason_comments WHERE track_id = ?)`,
+  )
+    .bind(id)
+    .run();
+  await env.DB.prepare("DELETE FROM reason_comments WHERE track_id = ?")
+    .bind(id)
+    .run();
   await env.DB.prepare("DELETE FROM likes WHERE track_id = ?").bind(id).run();
   await env.DB.prepare("DELETE FROM track_tags WHERE track_id = ?").bind(id).run();
   await env.DB.prepare("DELETE FROM tracks WHERE id = ?").bind(id).run();

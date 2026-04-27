@@ -3,6 +3,7 @@ export const MAX_TAGS = 12;
 export const MAX_TAG_LENGTH = 24;
 export const MAX_GENRE_LENGTH = 40;
 export const MAX_TIMESTAMP_BODY_LENGTH = 160;
+export const MAX_REASON_COMMENT_BODY_LENGTH = 300;
 
 export type ValidationResult<T> =
   | { ok: true; value: T }
@@ -200,4 +201,22 @@ export function validateTimestamps(
   }
 
   return { ok: true, value: timestamps };
+}
+
+export function validateReasonCommentBody(
+  value: unknown,
+): ValidationResult<string> {
+  if (typeof value !== "string" || !value.trim()) {
+    return { ok: false, error: "Comment body is required." };
+  }
+
+  const body = value.trim();
+  if (body.length > MAX_REASON_COMMENT_BODY_LENGTH) {
+    return {
+      ok: false,
+      error: `Comment body must be ${MAX_REASON_COMMENT_BODY_LENGTH} characters or less.`,
+    };
+  }
+
+  return { ok: true, value: body };
 }

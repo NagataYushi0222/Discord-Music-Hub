@@ -1,6 +1,7 @@
 import type {
   AppUser,
   GuildSelection,
+  ReasonComment,
   Track,
   TrackCreateInput,
   TimestampComment,
@@ -19,7 +20,49 @@ function normalizeStoredTracks(tracks: Track[]): Track[] {
     ...track,
     genre: track.genre ?? "",
     tags: track.tags ?? [],
+    reasonComments: track.reasonComments ?? [],
+    reasonCommentCount:
+      track.reasonCommentCount ?? countReasonComments(track.reasonComments ?? []),
     timestamps: track.timestamps ?? [],
+  }));
+}
+
+function countReasonComments(comments: ReasonComment[]): number {
+  return comments.reduce(
+    (total, comment) => total + 1 + countReasonComments(comment.replies ?? []),
+    0,
+  );
+}
+
+function mapReasonComments(
+  comments: ReasonComment[],
+  commentId: string,
+  mapper: (comment: ReasonComment) => ReasonComment,
+): ReasonComment[] {
+  return comments.map((comment) => {
+    if (comment.id === commentId) {
+      return mapper(comment);
+    }
+
+    return {
+      ...comment,
+      replies: mapReasonComments(comment.replies ?? [], commentId, mapper),
+    };
+  });
+}
+
+function appendReasonComment(
+  comments: ReasonComment[],
+  parentCommentId: string | null,
+  comment: ReasonComment,
+): ReasonComment[] {
+  if (!parentCommentId) {
+    return [...comments, comment];
+  }
+
+  return mapReasonComments(comments, parentCommentId, (parent) => ({
+    ...parent,
+    replies: [...(parent.replies ?? []), comment],
   }));
 }
 
@@ -91,6 +134,8 @@ export async function localCreateTrack(input: TrackCreateInput): Promise<Track> 
     addedBy: devUser,
     tags: input.tags,
     reason: input.reason,
+    reasonComments: [],
+    reasonCommentCount: 0,
     timestamps: timestampComments,
     likes: 0,
     likedByMe: false,
@@ -142,6 +187,77 @@ export async function localRecordTrackView(trackId: string): Promise<Track> {
     ...tracks[index],
     views: tracks[index].views + 1,
   };
+  tracks[index] = nextTrack;
+  writeTracks(tracks);
+  return nextTrack;
+}
+
+export async function localAddReasonComment(
+  trackId: string,
+  body: string,
+  parentCommentId?: string | null,
+): Promise<Track> {
+  const tracks = readTracks();
+  const index = tracks.findIndex((track) => track.id === trackId);
+  if (index < 0) {
+    throw new Error("曲が見つかりません。");
+  }
+
+  const comment: ReasonComment = {
+    id: `local_rc_${Date.now()}`,
+    body: body.trim(),
+    user: devUser,
+    likes: 0,
+    likedByMe: false,
+    replies: [],
+    createdAt: new Date().toISOString(),
+  };
+
+  const nextComments = appendReasonComment(
+    tracks[index].reasonComments ?? [],
+    parentCommentId ?? null,
+    comment,
+  );
+  const nextTrack = {
+    ...tracks[index],
+    reasonComments: nextComments,
+    reasonCommentCount: countReasonComments(nextComments),
+  };
+
+  tracks[index] = nextTrack;
+  writeTracks(tracks);
+  return nextTrack;
+}
+
+export async function localSetReasonCommentLike(
+  trackId: string,
+  commentId: string,
+  liked: boolean,
+): Promise<Track> {
+  const tracks = readTracks();
+  const index = tracks.findIndex((track) => track.id === trackId);
+  if (index < 0) {
+    throw new Error("曲が見つかりません。");
+  }
+
+  const nextComments = mapReasonComments(
+    tracks[index].reasonComments ?? [],
+    commentId,
+    (comment) => {
+      const changed = comment.likedByMe !== liked;
+      return {
+        ...comment,
+        likedByMe: liked,
+        likes: changed ? comment.likes + (liked ? 1 : -1) : comment.likes,
+      };
+    },
+  );
+  const nextTrack = {
+    ...tracks[index],
+    reasonComments: nextComments,
+    reasonCommentCount: countReasonComments(nextComments),
+  };
+
   tracks[index] = nextTrack;
   writeTracks(tracks);
   return nextTrack;
