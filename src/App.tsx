@@ -203,6 +203,20 @@ export default function App() {
     [currentVisibleIndex, visibleTracks],
   );
 
+  const handleSelectTrack = useCallback(
+    (track: Track) => {
+      if (track.id === selectedTrack?.id && player && playback.isReady) {
+        player.playVideo();
+        setPlayback((current) => ({ ...current, isPlaying: true }));
+        return;
+      }
+
+      autoPlayNextTrackRef.current = true;
+      setSelectedId(track.id);
+    },
+    [playback.isReady, player, selectedTrack?.id],
+  );
+
   useEffect(() => {
     setPlayer(null);
     setPlayback((current) => ({
@@ -634,7 +648,7 @@ export default function App() {
                     key={track.id}
                     track={track}
                     active={selectedTrack?.id === track.id}
-                    onSelect={(nextTrack) => setSelectedId(nextTrack.id)}
+                    onSelect={handleSelectTrack}
                     onLike={handleLike}
                   />
                 ))
